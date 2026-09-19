@@ -1,10 +1,12 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, lazy, Suspense } from 'react';
 import { useFrigg } from './store.js';
 import { bridge } from './bridge.js';
 import { Canvas2D } from './canvas/Canvas2D.js';
-import { Office3D } from './office/Office3D.js';
 import { SidePanel } from './SidePanel.js';
 import { healthLabel } from '../core/omniroute-client.js';
+
+// D04: o módulo 3D (Three.js) carrega sob demanda — não pesa no canvas 2D.
+const Office3D = lazy(() => import('./office/Office3D.js').then((m) => ({ default: m.Office3D })));
 
 export function App(): JSX.Element {
   const view = useFrigg((s) => s.view);
@@ -51,7 +53,15 @@ export function App(): JSX.Element {
         <button className={`btn ${view === '3d' ? 'active' : ''}`} onClick={() => setView('3d')}>Escritório 3D</button>
       </div>
       <div className="main">
-        <div className="stage">{view === '2d' ? <Canvas2D /> : <Office3D />}</div>
+        <div className="stage">
+          {view === '2d' ? (
+            <Canvas2D />
+          ) : (
+            <Suspense fallback={<div style={{ padding: 16 }} className="muted">Carregando escritório 3D…</div>}>
+              <Office3D />
+            </Suspense>
+          )}
+        </div>
         <SidePanel />
       </div>
     </div>
