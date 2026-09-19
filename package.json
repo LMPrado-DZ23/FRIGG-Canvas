@@ -2,16 +2,43 @@
   "name": "frigg-canvas",
   "version": "0.0.1",
   "private": true,
-  "description": "FRIGG — canvas + orquestração de agentes sobre OmniRoute (serviço headless)",
+  "description": "FRIGG — canvas + orquestração de agentes (terminais de CLI de IA) + escritório 3D, sobre OmniRoute",
   "type": "module",
+  "main": "dist/main/main.cjs",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build:main": "node scripts/build-main.mjs",
+    "build:renderer": "vite build",
+    "build": "npm run build:main && npm run build:renderer",
+    "dev:renderer": "vite",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.114.0",
+    "@react-three/fiber": "^8.17.10",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
+    "@xyflow/react": "^12.3.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.169.0",
+    "zustand": "^5.0.1"
+  },
+  "optionalDependencies": {
+    "@homebridge/node-pty-prebuilt-multiarch": "^0.12.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.169.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.1",
+    "esbuild": "^0.24.0",
     "typescript": "^5.6.3",
+    "vite": "^6.0.3",
     "vitest": "^2.1.8"
   }
 }

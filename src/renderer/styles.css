@@ -1,0 +1,58 @@
+:root {
+  --bg: #0b1220;
+  --panel: #111a2e;
+  --panel-2: #16223c;
+  --line: #24344f;
+  --text: #dce6f5;
+  --muted: #8aa0c0;
+  --accent: #14e0c8;
+  --accent-2: #35d07f;
+  --warn: #f5b942;
+  --err: #ff6b6b;
+}
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.4 system-ui, Segoe UI, Roboto, sans-serif;
+}
+.app { display: flex; flex-direction: column; height: 100%; }
+.topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.brand { font-weight: 800; letter-spacing: 2px; color: var(--accent); }
+.spacer { flex: 1; }
+.btn {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 10px; cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.active { background: var(--accent); color: #06121a; border-color: var(--accent); font-weight: 700; }
+.badge { padding: 4px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); }
+.badge.ok { color: var(--accent-2); border-color: var(--accent-2); }
+.badge.down { color: var(--err); border-color: var(--err); }
+.badge.unknown { color: var(--muted); }
+.main { flex: 1; position: relative; display: flex; min-height: 0; }
+.stage { flex: 1; min-width: 0; position: relative; }
+.side {
+  width: 320px; background: var(--panel); border-left: 1px solid var(--line);
+  padding: 12px; overflow: auto;
+}
+.node {
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+  color: var(--text); min-width: 200px; box-shadow: 0 6px 18px rgba(0,0,0,.35);
+}
+.node .head { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.node .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+.node .body { padding: 8px 10px; }
+.dot.working { background: var(--accent); }
+.dot.awaiting_approval { background: var(--warn); }
+.dot.failed, .dot.unknown { background: var(--err); }
+.dot.done { background: var(--accent-2); }
+.note textarea { width: 260px; height: 120px; background: #0d1526; color: var(--text); border: 1px solid var(--line); border-radius: 6px; resize: both; }
+.term { width: 460px; height: 260px; background: #05080f; border-radius: 6px; }
+.term-wrap .warn { color: var(--warn); padding: 8px; font-size: 12px; }
+.muted { color: var(--muted); }
+h3 { margin: 6px 0; }
