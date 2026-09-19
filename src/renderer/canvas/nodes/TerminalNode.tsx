@@ -1,14 +1,7 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { useFrigg } from '../../store.js';
 import { TerminalView } from './TerminalView.js';
-
-/** Presets de CLIs de IA — o terminal abre a CLI escolhida (ou o shell). */
-const CLI_PRESETS: Record<string, string> = {
-  Shell: '',
-  'Claude Code': 'claude',
-  Codex: 'codex',
-  Gemini: 'gemini',
-};
+import { CLI_CATALOG, CLI_CATEGORIES } from '../../cli-catalog.js';
 
 export function TerminalNode(props: NodeProps): JSX.Element {
   const nodeId = (props.data as { nodeId: string }).nodeId;
@@ -26,8 +19,13 @@ export function TerminalNode(props: NodeProps): JSX.Element {
           value={command}
           onChange={(e) => patch(nodeId, { command: e.target.value, title: e.target.selectedOptions[0]?.text ?? title })}
         >
-          {Object.entries(CLI_PRESETS).map(([label, cmd]) => (
-            <option key={label} value={cmd}>{label}</option>
+          <option value="">Shell</option>
+          {CLI_CATEGORIES.map((cat) => (
+            <optgroup key={cat} label={cat}>
+              {CLI_CATALOG.filter((c) => c.category === cat).map((c) => (
+                <option key={c.label} value={c.command}>{c.label}{c.managed ? ' ★' : ''}</option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>

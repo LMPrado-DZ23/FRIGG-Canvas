@@ -4,49 +4,49 @@ Camada de **canvas + orquestração de agentes** sobre o **OmniRoute** (serviço
 headless). Concorrente melhor que o Maestri; o diferencial é que cada nó roteia
 pelo OmniRoute. Alvo: `.exe` Windows assinado, com auto-update.
 
-> Coordenação de projeto e decisões A–G: `../Regente/REGENTE-PLANO-CONSENSO.md`
-> e `../Regente/REGENTE-HANDOFF.md`. Espelho na MCP dz23:
-> `project=regente`, `mission=regente-omniroute-contract`.
+> Decisões A–G e D01–D12: `../Regente/*.md` e o canal `LMPrado-DZ23/ai-memory`
+> (`docs/handoffs/regente/`). Memória cross-harness: MCP dz23 `project=regente`.
 
 ## Status por componente (honesto)
 
 | Componente | Estado | Evidência |
 |---|---|---|
-| Núcleo: máquina de estados de turno (G4) | ✅ implementado + testado | `npm test` → 24 testes |
-| Núcleo: cliente OmniRoute (saúde honesta) | ✅ implementado + testado | idem |
-| Núcleo: contrato de adaptador de harness (G2) | ✅ implementado + testado | idem |
+| Núcleo: turn-state (G4), session-model (D05/D06), workspace, omniroute-client, claude-stream | ✅ implementado + testado | `npm test` → 43 testes |
 | Typecheck strict | ✅ limpo | `npm run typecheck` (exit 0) |
-| Electron main + preload tipado (segurança) | 🟡 código escrito, **NÃO buildado** | requer deps desktop |
-| Renderer React + React Flow + notas | ⬜ NÃO_IMPLEMENTADO (próximo incremento) | — |
-| Terminal PTY real (xterm + node-pty) | ⬜ NÃO_IMPLEMENTADO (requer build tools) | — |
-| Persistência SQLite | ⬜ NÃO_IMPLEMENTADO | — |
-| Empacotamento .exe / assinatura | ⬜ fase posterior | — |
+| Renderer: Canvas 2D (React Flow), nós Terminal/Agente/Nota/Health | ✅ build OK | `npm run build:renderer` |
+| Escritório 3D (React Three Fiber), lazy-load | ✅ build OK (chunk separado) | idem |
+| View Operação (fallback DOM acessível, sem WebGL) | ✅ build OK | idem |
+| Main Electron seguro + preload tipado | ✅ build OK | `npm run build:main` |
+| Terminais PTY reais (xterm + node-pty pré-compilado) | 🟡 código pronto; binário nativo depende do ambiente | degrada p/ "indisponível" |
+| Adaptador Claude (harness gerenciado, stream-json) | 🟡 implementado; execução ao vivo requer `claude` logado | mapeamento testado |
+| Adaptador Codex App Server | ⬜ próximo (Marco 2b) | — |
+| Empacotamento `.exe` (electron-builder) | 🟡 config pronta; build/assinatura fora deste ambiente | `npm run dist:win` |
 
-Nada aqui declara "TESTADO" sem teste executado. O que está verde é só o núcleo puro.
+Nada aqui diz "TESTADO" sem teste executado. O verde é núcleo + typecheck + builds.
 
-## Decisões que o código encarna
-
-- **G4** — processo vivo ≠ resposta do modelo ≠ turno encerrado ≠ resultado
-  validado. Cancelamento pedido ≠ confirmado. Stream cortado → `unknown`, nunca
-  `completed`. (`src/core/turn-state.ts`)
-- **Saúde honesta** — serviço ausente = `unavailable`; nunca `reachable` sem
-  sonda HTTP OK. (`src/core/omniroute-client.ts`)
-- **G2** — nó gerenciado = sessão de harness via adaptador estruturado
-  (Codex App Server / Claude Agent SDK), não chamada `/v1`. Terminal PTY puro
-  não é elegível a nó de grafo. (`src/core/harness-adapter.ts`)
-- **Segurança Electron** — contextIsolation on, sandbox on, sem nodeIntegration,
-  sem webview privilegiada. (`src/main/main.ts`, `src/preload/preload.ts`)
-
-## Rodar os testes do núcleo
+## Rodar
 
 ```bash
 npm install
-npm test
-npm run typecheck
+npm test            # 43 testes
+npm run build       # main + renderer
+npm start           # abre a janela (baixa o binário do Electron na 1ª vez)
 ```
 
-## Próximo incremento (continuação do Marco 1)
+Terminais 100% (node-pty nativo): com Visual Studio Build Tools (C++) instalado,
+rode `npm run rebuild`. Sem isso, os terminais aparecem como "indisponível".
 
-Renderer React + React Flow (canvas) + notas + persistência SQLite + terminal
-PTY real. Passos e dependências desktop em `DEPS-DESKTOP.md`. O terminal PTY
-exige build tools (node-gyp) — por isso não entra no `npm test` do núcleo.
+Empacotar o instalador Windows: `npm run dist:win` (gera `release/`). A assinatura
+do `.exe` exige um certificado — que nasce da conta do dono do projeto.
+
+## Arquitetura (decisões encarnadas)
+- **G4** — processo ≠ turno ≠ resultado; cancelamento pedido ≠ confirmado; stream
+  cortado → `unknown`. (`src/core/turn-state.ts`)
+- **G2** — nó gerenciado = sessão de harness via adaptador estruturado
+  (`src/main/adapters/claude-adapter.ts` + `src/core/claude-stream.ts`), não `/v1`.
+- **Saúde honesta** — OmniRoute ausente = indisponível. (`src/core/omniroute-client.ts`)
+- **D01** — 4 visões (Canvas 2D, Escritório 3D, Operação, + seleção/Foco) sobre a
+  MESMA sessão. **D04** — 3D sob demanda. **D05/D06** — animação derivada de estado
+  confirmado. **D11** — Operação é o fallback sem WebGL.
+- **Segurança** — contextIsolation/sandbox, sem nodeIntegration, sem webview
+  privilegiada; renderer só fala com PTY/agent/fs via IPC tipado.

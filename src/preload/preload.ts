@@ -5,6 +5,21 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import type { HealthResult } from '../core/omniroute-client.js';
 import type { WorkspaceDoc } from '../core/workspace.js';
+import type { SessionEvent } from '../core/turn-state.js';
+
+export interface AgentEvent {
+  readonly id: string;
+  readonly event: SessionEvent;
+}
+export interface AgentCost {
+  readonly id: string;
+  readonly usd: number;
+}
+export interface AgentStartParams {
+  readonly prompt: string;
+  readonly harness?: string;
+  readonly model?: string;
+}
 
 export interface PtyDataEvent {
   readonly id: string;
@@ -29,6 +44,14 @@ export interface FriggApi {
     kill(id: string): void;
     onData(cb: (e: PtyDataEvent) => void): () => void;
     onExit(cb: (e: PtyExitEvent) => void): () => void;
+  };
+  agent: {
+    start(id: string, params: AgentStartParams): Promise<{ ok: boolean; detail: string }>;
+    cancel(id: string): Promise<{ ok: boolean }>;
+    approve(id: string, requestId: string, decision: 'approved' | 'denied'): Promise<{ ok: boolean }>;
+    onEvent(cb: (e: AgentEvent) => void): () => void;
+    // (impl de approve adicionada abaixo)
+    onCost(cb: (e: AgentCost) => void): () => void;
   };
 }
 
@@ -56,6 +79,23 @@ const api: FriggApi = {
       const h = (_e: IpcRendererEvent, e: PtyExitEvent): void => cb(e);
       ipcRenderer.on('pty:exit', h);
       return () => ipcRenderer.removeListener('pty:exit', h);
+    },
+  },
+  agent: {
+    start: (id, params) =>
+      ipcRenderer.invoke('agent:start', id, params) as Promise<{ ok: boolean; detail: string }>,
+    cancel: (id) => ipcRenderer.invoke('agent:cancel', id) as Promise<{ ok: boolean }>,
+    approve: (id, requestId, decision) =>
+      ipcRenderer.invoke('agent:approve', id, requestId, decision) as Promise<{ ok: boolean }>,
+    onEvent: (cb) => {
+      const h = (_e: IpcRendererEvent, e: AgentEvent): void => cb(e);
+      ipcRenderer.on('agent:event', h);
+      return () => ipcRenderer.removeListener('agent:event', h);
+    },
+    onCost: (cb) => {
+      const h = (_e: IpcRendererEvent, e: AgentCost): void => cb(e);
+      ipcRenderer.on('agent:cost', h);
+      return () => ipcRenderer.removeListener('agent:cost', h);
     },
   },
 };

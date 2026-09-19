@@ -4,7 +4,7 @@ import { emptyWorkspace } from '../core/workspace.js';
 import { initialSessionState, reduce, type AgentSessionState, type SessionEvent } from '../core/turn-state.js';
 import type { HealthResult } from '../core/omniroute-client.js';
 
-export type ViewMode = '2d' | '3d';
+export type ViewMode = '2d' | '3d' | 'op';
 
 export interface SessionSlot {
   readonly state: AgentSessionState;

@@ -53,4 +53,21 @@ export const bridge: FriggApi = real ?? {
       return () => {};
     },
   },
+  agent: {
+    async start() {
+      return { ok: false, detail: 'agente indisponível (sem bridge / dev no navegador)' };
+    },
+    async cancel() {
+      return { ok: true };
+    },
+    async approve() {
+      return { ok: true };
+    },
+    onEvent() {
+      return () => {};
+    },
+    onCost() {
+      return () => {};
+    },
+  },
 };
