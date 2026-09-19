@@ -1,52 +1,58 @@
 # FRIGG Canvas
 
-Camada de **canvas + orquestração de agentes** sobre o **OmniRoute** (serviço
-headless). Concorrente melhor que o Maestri; o diferencial é que cada nó roteia
-pelo OmniRoute. Alvo: `.exe` Windows assinado, com auto-update.
+App desktop de **canvas + orquestração de agentes de IA** sobre o **OmniRoute**
+(serviço headless). Vários terminais de CLI de IA, agentes gerenciados com papéis,
+**escritório 3D** e **equipes orquestradas** — pensado para ser fácil até para leigos.
 
-> Decisões A–G e D01–D12: `../Regente/*.md` e o canal `LMPrado-DZ23/ai-memory`
-> (`docs/handoffs/regente/`). Memória cross-harness: MCP dz23 `project=regente`.
+> Decisões A–G e D01–D12: `../Regente/*.md` e o canal `LMPrado-DZ23/ai-memory`.
+> Memória cross-harness: MCP dz23 `project=regente`.
 
-## Status por componente (honesto)
+## O que dá pra fazer
+- **Vários agentes ao mesmo tempo** no canvas (cada nó = uma sessão de harness real).
+- **Papéis prontos**: Orquestrador, Arquiteto, Desenvolvedor, Revisor, QA, Analista,
+  CTO, Segurança (system-prompt já vem pronto).
+- **Equipes orquestradas**: escolha um template (Feature/Revisão/Discovery), escreva o
+  objetivo e clique **Orquestrar** — o FRIGG dispara cada agente na ordem certa,
+  passando a saída de um para o próximo, respeitando falhas (não inventa sucesso).
+- **Escritório 3D** (mesma sessão do 2D) e visão **Operação** (lista acessível).
+- **Terminais de CLI de IA**: catálogo espelhando o OmniRoute — Code (26), Agent (10),
+  Externas compatíveis (10).
+
+## Status (honesto)
 
 | Componente | Estado | Evidência |
 |---|---|---|
-| Núcleo: turn-state (G4), session-model (D05/D06), workspace, omniroute-client, claude-stream | ✅ implementado + testado | `npm test` → 43 testes |
-| Typecheck strict | ✅ limpo | `npm run typecheck` (exit 0) |
-| Renderer: Canvas 2D (React Flow), nós Terminal/Agente/Nota/Health | ✅ build OK | `npm run build:renderer` |
-| Escritório 3D (React Three Fiber), lazy-load | ✅ build OK (chunk separado) | idem |
-| View Operação (fallback DOM acessível, sem WebGL) | ✅ build OK | idem |
-| Main Electron seguro + preload tipado | ✅ build OK | `npm run build:main` |
-| Terminais PTY reais (xterm + node-pty pré-compilado) | 🟡 código pronto; binário nativo depende do ambiente | degrada p/ "indisponível" |
-| Adaptador Claude (harness gerenciado, stream-json) | 🟡 implementado; execução ao vivo requer `claude` logado | mapeamento testado |
-| Adaptador Codex App Server | ⬜ próximo (Marco 2b) | — |
-| Empacotamento `.exe` (electron-builder) | 🟡 config pronta; build/assinatura fora deste ambiente | `npm run dist:win` |
+| Núcleo: turn-state, session-model, workspace, omniroute-client, claude-stream, roles, orchestrator | ✅ testado | 51 testes Vitest |
+| Typecheck strict | ✅ exit 0 | `npm run typecheck` |
+| Canvas 2D + nós + arestas + escritório 3D + Operação | ✅ build OK | `npm run build:renderer` |
+| Orquestração (papéis + grafo + templates) | ✅ implementado; motor testado | idem + testes |
+| Adaptadores Claude (stream-json) e Codex (App Server) + aprovações | 🟡 implementado; execução ao vivo requer CLI logada | mapeamento testado |
+| Terminais PTY (node-pty pré-compilado) | 🟡 código pronto; binário nativo depende do ambiente | degrada p/ "indisponível" |
+| `.exe` (electron-builder) | 🟡 config pronta; build/assinatura fora deste sandbox | `npm run dist:win` |
 
-Nada aqui diz "TESTADO" sem teste executado. O verde é núcleo + typecheck + builds.
-
-## Rodar
-
+## Rodar (na sua máquina Windows)
 ```bash
 npm install
-npm test            # 43 testes
-npm run build       # main + renderer
-npm start           # abre a janela (baixa o binário do Electron na 1ª vez)
+npm test                 # 51 testes
+npm run build            # main + renderer
+npm start                # abre a janela (baixa o Electron na 1ª vez)
 ```
 
-Terminais 100% (node-pty nativo): com Visual Studio Build Tools (C++) instalado,
-rode `npm run rebuild`. Sem isso, os terminais aparecem como "indisponível".
+## Gerar o instalador .exe
+```bash
+npm run dist:win         # gera release/ (NSIS)
+```
+Terminais 100% (node-pty nativo): com Visual Studio Build Tools (C++), rode
+`npm run rebuild`. Assinatura do `.exe` exige certificado (nasce da sua conta).
 
-Empacotar o instalador Windows: `npm run dist:win` (gera `release/`). A assinatura
-do `.exe` exige um certificado — que nasce da conta do dono do projeto.
+## OmniRoute
+Endpoint local padrão: `http://localhost:20128` (inferência em `/v1`). Ausente = a UI
+mostra "indisponível" (nunca finge saúde). CLIs externas roteiam exportando
+`OPENAI_BASE_URL=http://localhost:20128/v1`.
 
-## Arquitetura (decisões encarnadas)
-- **G4** — processo ≠ turno ≠ resultado; cancelamento pedido ≠ confirmado; stream
-  cortado → `unknown`. (`src/core/turn-state.ts`)
-- **G2** — nó gerenciado = sessão de harness via adaptador estruturado
-  (`src/main/adapters/claude-adapter.ts` + `src/core/claude-stream.ts`), não `/v1`.
-- **Saúde honesta** — OmniRoute ausente = indisponível. (`src/core/omniroute-client.ts`)
-- **D01** — 4 visões (Canvas 2D, Escritório 3D, Operação, + seleção/Foco) sobre a
-  MESMA sessão. **D04** — 3D sob demanda. **D05/D06** — animação derivada de estado
-  confirmado. **D11** — Operação é o fallback sem WebGL.
-- **Segurança** — contextIsolation/sandbox, sem nodeIntegration, sem webview
-  privilegiada; renderer só fala com PTY/agent/fs via IPC tipado.
+## Arquitetura encarnada
+- **G4** processo ≠ turno ≠ resultado; cancelamento pedido ≠ confirmado; stream cortado
+  → unknown. **G2** nó gerenciado = sessão de harness via adaptador, não `/v1`.
+- **Orquestração** = grafo executável: aresta A→B só dispara B quando A concluiu; falha
+  bloqueia downstream; ciclo é rejeitado.
+- **Segurança** contextIsolation/sandbox, sem nodeIntegration, sem webview privilegiada.
