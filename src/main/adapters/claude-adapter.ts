@@ -46,6 +46,7 @@ export function startClaudeSession(params: StartAgentParams, cb: AgentCallbacks)
       sawResult = true;
       const usd = costFromResult(msg);
       if (usd !== null) cb.onCost?.(usd);
+      if (typeof msg.result === 'string' && msg.result.length > 0) cb.onOutput?.(msg.result);
     }
     for (const ev of claudeMsgToEvents(msg)) cb.onEvent(ev);
   };

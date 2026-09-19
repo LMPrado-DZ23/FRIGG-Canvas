@@ -47,6 +47,7 @@ export function startCodexSession(params: StartCodexParams, cb: AgentCallbacks):
   let turnId: string | null = null;
   let cancelRequested = false;
   let sawTerminal = false;
+  let output = '';
   // requestId (string p/ a UI) -> id JSON-RPC da requisição de aprovação
   const approvals = new Map<string, number | string>();
 
@@ -78,7 +79,10 @@ export function startCodexSession(params: StartCodexParams, cb: AgentCallbacks):
         const turn = msg.params?.['turn'] as { id?: string; status?: string; error?: { message?: string } } | undefined;
         const status = turn?.status ?? 'completed';
         sawTerminal = true;
-        if (status === 'completed') emit({ type: 'turn.completed', turnId: turn?.id ?? turnId ?? 'codex-turn' });
+        if (status === 'completed') {
+          if (output.length > 0) cb.onOutput?.(output);
+          emit({ type: 'turn.completed', turnId: turn?.id ?? turnId ?? 'codex-turn' });
+        }
         else if (status === 'interrupted') {
           if (cancelRequested) emit({ type: 'cancel.confirmed' });
           else emit({ type: 'turn.failed', turnId: turn?.id ?? 'codex-turn', error: 'interrompido' });
@@ -94,8 +98,13 @@ export function startCodexSession(params: StartCodexParams, cb: AgentCallbacks):
         }
         break;
       }
+      case 'item/agentMessage/delta': {
+        const d = msg.params?.['delta'];
+        if (typeof d === 'string') output += d;
+        break;
+      }
       default:
-        break; // item/started, item/completed, deltas, plan/diff updates: atividade
+        break; // item/started, item/completed, plan/diff updates: atividade
     }
   };
 

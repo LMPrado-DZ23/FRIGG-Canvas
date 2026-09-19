@@ -10,4 +10,6 @@ export interface ManagedSession {
 export interface AgentCallbacks {
   onEvent: (e: SessionEvent) => void;
   onCost?: (usd: number) => void;
+  /** Texto final do agente (para encadear a saída de A na entrada de B). */
+  onOutput?: (text: string) => void;
 }

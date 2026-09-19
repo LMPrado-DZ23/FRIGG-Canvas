@@ -69,5 +69,8 @@ export const bridge: FriggApi = real ?? {
     onCost() {
       return () => {};
     },
+    onOutput() {
+      return () => {};
+    },
   },
 };

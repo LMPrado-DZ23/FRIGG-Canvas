@@ -15,6 +15,10 @@ export interface AgentCost {
   readonly id: string;
   readonly usd: number;
 }
+export interface AgentOutput {
+  readonly id: string;
+  readonly text: string;
+}
 export interface AgentStartParams {
   readonly prompt: string;
   readonly harness?: string;
@@ -52,6 +56,7 @@ export interface FriggApi {
     onEvent(cb: (e: AgentEvent) => void): () => void;
     // (impl de approve adicionada abaixo)
     onCost(cb: (e: AgentCost) => void): () => void;
+    onOutput(cb: (e: AgentOutput) => void): () => void;
   };
 }
 
@@ -96,6 +101,11 @@ const api: FriggApi = {
       const h = (_e: IpcRendererEvent, e: AgentCost): void => cb(e);
       ipcRenderer.on('agent:cost', h);
       return () => ipcRenderer.removeListener('agent:cost', h);
+    },
+    onOutput: (cb) => {
+      const h = (_e: IpcRendererEvent, e: AgentOutput): void => cb(e);
+      ipcRenderer.on('agent:output', h);
+      return () => ipcRenderer.removeListener('agent:output', h);
     },
   },
 };

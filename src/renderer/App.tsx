@@ -1,10 +1,12 @@
-import { useEffect, useCallback, lazy, Suspense } from 'react';
+import { useEffect, useCallback, useState, lazy, Suspense } from 'react';
 import { useFrigg } from './store.js';
 import { bridge } from './bridge.js';
 import { Canvas2D } from './canvas/Canvas2D.js';
 import { SidePanel } from './SidePanel.js';
 import { OperationView } from './OperationView.js';
 import { healthLabel } from '../core/omniroute-client.js';
+import { startWorkflow, pumpWorkflow } from './orchestrate.js';
+import { TEAM_TEMPLATES } from './templates.js';
 
 // D04: o módulo 3D (Three.js) carrega sob demanda — não pesa no canvas 2D.
 const Office3D = lazy(() => import('./office/Office3D.js').then((m) => ({ default: m.Office3D })));
@@ -21,6 +23,14 @@ export function App(): JSX.Element {
   const nodes = useFrigg((s) => s.nodes);
 
   const applyEvent = useFrigg((s) => s.applyEvent);
+  const setOutput = useFrigg((s) => s.setOutput);
+  const addCost = useFrigg((s) => s.addCost);
+  const objective = useFrigg((s) => s.objective);
+  const setObjective = useFrigg((s) => s.setObjective);
+  const workflowRunning = useFrigg((s) => s.workflowRunning);
+  const setWorkflowRunning = useFrigg((s) => s.setWorkflowRunning);
+  const addTemplate = useFrigg((s) => s.addTemplate);
+  const [wfMsg, setWfMsg] = useState<string | null>(null);
 
   // Bootstrap: carrega workspace, sonda saúde/PTY e escuta eventos de agente.
   useEffect(() => {
@@ -29,12 +39,29 @@ export function App(): JSX.Element {
     const tick = (): void => void bridge.omniroute.health().then(setHealth);
     tick();
     const t = setInterval(tick, 5000);
-    const offEvent = bridge.agent.onEvent(({ id, event }) => applyEvent(id, event));
+    const offEvent = bridge.agent.onEvent(({ id, event }) => {
+      applyEvent(id, event);
+      void pumpWorkflow(); // reavalia o fluxo a cada transição real
+    });
+    const offOutput = bridge.agent.onOutput(({ id, text }) => setOutput(id, text));
+    const offCost = bridge.agent.onCost(({ id, usd }) => addCost(id, usd));
     return () => {
       clearInterval(t);
       offEvent();
+      offOutput();
+      offCost();
     };
-  }, [loadDoc, setHealth, setPty, applyEvent]);
+  }, [loadDoc, setHealth, setPty, applyEvent, setOutput, addCost]);
+
+  const onOrchestrate = (): void => {
+    if (workflowRunning) {
+      setWorkflowRunning(false);
+      setWfMsg('Fluxo pausado.');
+      return;
+    }
+    const err = startWorkflow();
+    setWfMsg(err ?? 'Fluxo iniciado.');
+  };
 
   // Autosave (debounce simples) quando os nós mudam.
   useEffect(() => {
@@ -54,6 +81,29 @@ export function App(): JSX.Element {
         <button className="btn" onClick={add('terminal')}>+ Terminal</button>
         <button className="btn" onClick={add('agent')}>+ Agente</button>
         <button className="btn" onClick={add('note')}>+ Nota</button>
+        <select
+          className="btn"
+          value=""
+          onChange={(e) => {
+            const tpl = TEAM_TEMPLATES.find((t) => t.id === e.target.value);
+            if (tpl) addTemplate(tpl.nodes, tpl.chain);
+          }}
+          title="Equipe pronta"
+        >
+          <option value="">+ Equipe…</option>
+          {TEAM_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+        </select>
+        <input
+          className="btn"
+          style={{ width: 260 }}
+          placeholder="Objetivo do projeto (para a equipe)…"
+          value={objective}
+          onChange={(e) => setObjective(e.target.value)}
+        />
+        <button className={`btn ${workflowRunning ? 'active' : ''}`} onClick={onOrchestrate}>
+          {workflowRunning ? '■ Parar' : '▶ Orquestrar'}
+        </button>
+        {wfMsg ? <span className="muted">{wfMsg}</span> : null}
         <div className="spacer" />
         <span className={`badge ${healthClass}`}>{healthLabel(hp)}</span>
         <button className={`btn ${view === '2d' ? 'active' : ''}`} onClick={() => setView('2d')}>Canvas 2D</button>

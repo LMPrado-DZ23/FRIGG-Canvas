@@ -4,8 +4,7 @@ import { useFrigg } from '../../store.js';
 import { bridge } from '../../bridge.js';
 import { deriveVisual, activityLabel } from '../../../core/session-model.js';
 import { initialSessionState } from '../../../core/turn-state.js';
-
-const HARNESSES = ['claude', 'codex'] as const;
+import { ROLES, roleById } from '../../../core/roles.js';
 
 export function AgentNode(props: NodeProps): JSX.Element {
   const nodeId = (props.data as { nodeId: string }).nodeId;
@@ -15,8 +14,10 @@ export function AgentNode(props: NodeProps): JSX.Element {
   const [prompt, setPrompt] = useState('');
   const [detail, setDetail] = useState<string | null>(null);
 
-  const title = typeof node?.data['title'] === 'string' ? (node.data['title'] as string) : 'Agente';
-  const harness = typeof node?.data['harness'] === 'string' ? (node.data['harness'] as string) : 'claude';
+  const roleId = typeof node?.data['role'] === 'string' ? (node.data['role'] as string) : 'developer';
+  const role = roleById(roleId);
+  const title = role ? `${role.emoji} ${role.label}` : 'Agente';
+  const harness = role?.harness ?? 'claude';
 
   const visual = deriveVisual(slot?.state ?? initialSessionState(), { lastEventAt: slot?.lastEventAt ?? null });
   const active = visual.activity === 'working' || visual.activity === 'awaiting_approval' || visual.activity === 'cancelling';
@@ -40,11 +41,12 @@ export function AgentNode(props: NodeProps): JSX.Element {
         <span className={`dot ${visual.activity}`} /> {title}
         <select
           className="nodrag"
-          value={harness}
-          onChange={(e) => patch(nodeId, { harness: e.target.value })}
+          value={roleId}
+          onChange={(e) => patch(nodeId, { role: e.target.value })}
           disabled={active}
+          title="Papel do agente"
         >
-          {HARNESSES.map((h) => <option key={h} value={h}>{h}</option>)}
+          {ROLES.map((r) => <option key={r.id} value={r.id}>{r.emoji} {r.label}</option>)}
         </select>
       </div>
       <div className="body">

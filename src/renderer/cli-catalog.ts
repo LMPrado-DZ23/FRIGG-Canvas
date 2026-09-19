@@ -1,100 +1,85 @@
 /**
- * FRIGG — catálogo COMPLETO de CLIs de IA para os terminais.
+ * FRIGG — catálogo de CLIs de IA, ESPELHANDO o OmniRoute (fonte de verdade).
+ * Duas famílias: "Code" (CLIs de código) e "Agent" (agentes de terminal).
  * Cada terminal roda a CLI escolhida SE estiver instalada no PATH; se não, o
- * shell mostra "command not found" (honesto — não fingimos disponibilidade).
+ * shell mostra "command not found" (honesto). `managed` = tem adaptador
+ * estruturado no FRIGG (turnos/estado no 2D e 3D): hoje Claude Code e Codex.
  *
- * `managed: true` = também roda como nó Agente gerenciado (turnos estruturados);
- * hoje Claude e Codex têm adaptador. Os demais funcionam como terminal.
- *
- * Espelha o universo de CLIs que o OmniRoute roteia (e cresce). Extensível:
- * basta acrescentar uma linha. Sincronização dinâmica com o OmniRoute é o
- * próximo passo.
+ * Comandos são o melhor palpite de invocação; o ideal é sincronizar
+ * dinamicamente com o OmniRoute (próximo passo). Ajuste livre por linha.
  */
-export type CliCategory =
-  | 'Provedores oficiais'
-  | 'Agentes de código'
-  | 'Motores locais'
-  | 'Shell / pipelines'
-  | 'Automação de SO'
-  | 'Roteadores / gateways'
-  | 'Shell';
+export type CliCategory = 'Code' | 'Agent' | 'Externas (compatíveis)' | 'Shell';
+
+/** Endpoint local padrão do OmniRoute (compat. OpenAI). */
+export const OMNIROUTE_LOCAL_ENDPOINT = 'http://localhost:20128/v1';
 
 export interface CliEntry {
   readonly label: string;
   readonly command: string;
   readonly category: CliCategory;
   readonly managed?: boolean;
+  /** false = existe no OmniRoute mas não aparece habilitada no painel. */
+  readonly enabled?: boolean;
 }
 
 export const CLI_CATALOG: readonly CliEntry[] = [
   { label: 'Shell', command: '', category: 'Shell' },
 
-  // 1. Provedores oficiais (vendor-native)
-  { label: 'Claude Code', command: 'claude', category: 'Provedores oficiais', managed: true },
-  { label: 'Codex CLI', command: 'codex', category: 'Provedores oficiais', managed: true },
-  { label: 'Gemini CLI', command: 'gemini', category: 'Provedores oficiais' },
-  { label: 'Antigravity CLI', command: 'antigravity', category: 'Provedores oficiais' },
-  { label: 'GitHub Copilot CLI', command: 'gh copilot', category: 'Provedores oficiais' },
-  { label: 'Amazon Q', command: 'q chat', category: 'Provedores oficiais' },
-  { label: 'Grok CLI', command: 'grok', category: 'Provedores oficiais' },
-  { label: 'Qwen Code', command: 'qwen', category: 'Provedores oficiais' },
+  // === Code (OmniRoute) — habilitadas no painel ===
+  { label: 'Aider', command: 'aider', category: 'Code' },
+  { label: 'Claude Code', command: 'claude', category: 'Code', managed: true },
+  { label: 'Cline', command: 'cline', category: 'Code' },
+  { label: 'CodeWhale', command: 'codewhale', category: 'Code' },
+  { label: 'Continue', command: 'cn', category: 'Code' },
+  { label: 'Crush', command: 'crush', category: 'Code' },
+  { label: 'Cursor Agent CLI', command: 'cursor-agent', category: 'Code' },
+  { label: 'Custom CLI', command: '', category: 'Code' },
+  { label: 'DeepSeek TUI', command: 'deepseek', category: 'Code' },
+  { label: 'Factory Droid', command: 'droid', category: 'Code' },
+  { label: 'ForgeCode', command: 'forge', category: 'Code' },
+  { label: 'GitHub Copilot', command: 'gh copilot', category: 'Code' },
+  { label: 'Grok Build', command: 'grok', category: 'Code' },
+  { label: 'jcode', command: 'jcode', category: 'Code' },
+  { label: 'Kilo Code', command: 'kilo', category: 'Code' },
+  { label: 'OpenAI Codex CLI', command: 'codex', category: 'Code', managed: true },
+  { label: 'OpenCode', command: 'opencode', category: 'Code' },
+  { label: 'Pi', command: 'pi', category: 'Code' },
+  { label: 'Qwen Code', command: 'qwen', category: 'Code' },
+  { label: 'Roo Code', command: 'roo', category: 'Code' },
+  { label: 'Smelt', command: 'smelt', category: 'Code' },
+  // === Code (OmniRoute) — existem mas fora do painel ===
+  { label: 'Antigravity', command: 'antigravity', category: 'Code', enabled: false },
+  { label: 'Cursor', command: 'cursor', category: 'Code', enabled: false },
+  { label: 'Hermes', command: 'hermes', category: 'Code', enabled: false },
+  { label: 'Kiro AI', command: 'kiro', category: 'Code', enabled: false },
+  { label: 'ZCode', command: 'zcode', category: 'Code', enabled: false },
 
-  // 2. Agentes de código de terminal
-  { label: 'Aider', command: 'aider', category: 'Agentes de código' },
-  { label: 'OpenCode', command: 'opencode', category: 'Agentes de código' },
-  { label: 'Kilo CLI', command: 'kilo', category: 'Agentes de código' },
-  { label: 'Kiro CLI', command: 'kiro', category: 'Agentes de código' },
-  { label: 'Cline CLI', command: 'cline', category: 'Agentes de código' },
-  { label: 'Roo Code CLI', command: 'roo', category: 'Agentes de código' },
-  { label: 'Qodo Command', command: 'qodo', category: 'Agentes de código' },
-  { label: 'Continue CLI', command: 'cn', category: 'Agentes de código' },
-  { label: 'Cursor CLI', command: 'cursor-agent', category: 'Agentes de código' },
-  { label: 'ForgeCode', command: 'forge', category: 'Agentes de código' },
-  { label: 'jcode', command: 'jcode', category: 'Agentes de código' },
-  { label: 'CodeWhale', command: 'codewhale', category: 'Agentes de código' },
-  { label: 'Smelt', command: 'smelt', category: 'Agentes de código' },
-  { label: 'Pi', command: 'pi', category: 'Agentes de código' },
-  { label: 'Crush', command: 'crush', category: 'Agentes de código' },
-  { label: 'Factory Droid', command: 'droid', category: 'Agentes de código' },
-  { label: 'Tabby CLI', command: 'tabby', category: 'Agentes de código' },
+  // === Agent (OmniRoute) ===
+  { label: '5dive', command: '5dive', category: 'Agent' },
+  { label: 'Agent Deck', command: 'agent-deck', category: 'Agent' },
+  { label: 'Goose', command: 'goose', category: 'Agent' },
+  { label: 'Hermes Agent', command: 'hermes-agent', category: 'Agent' },
+  { label: 'Letta CLI', command: 'letta', category: 'Agent' },
+  { label: 'Oh My Pi', command: 'ohmypi', category: 'Agent' },
+  { label: 'Open Claw', command: 'openclaw', category: 'Agent' },
+  { label: 'Open Interpreter', command: 'interpreter', category: 'Agent' },
+  { label: 'Prime Agent', command: 'prime', category: 'Agent' },
+  { label: 'Warp AI', command: 'warp', category: 'Agent' },
 
-  // 3. Motores locais (offline / self-hosted)
-  { label: 'Ollama', command: 'ollama run llama3', category: 'Motores locais' },
-  { label: 'llama.cpp', command: 'llama-cli', category: 'Motores locais' },
-  { label: 'LocalAI', command: 'local-ai', category: 'Motores locais' },
-  { label: 'vLLM', command: 'vllm', category: 'Motores locais' },
-  { label: 'ExLlamaV2', command: 'exllamav2', category: 'Motores locais' },
-  { label: 'Aphrodite Engine', command: 'aphrodite', category: 'Motores locais' },
-
-  // 4. Shell / pipelines / chat rápido
-  { label: 'Mods', command: 'mods', category: 'Shell / pipelines' },
-  { label: 'Shell-GPT', command: 'sgpt', category: 'Shell / pipelines' },
-  { label: 'Fabric CLI', command: 'fabric', category: 'Shell / pipelines' },
-  { label: 'LLM (Datasette)', command: 'llm', category: 'Shell / pipelines' },
-  { label: 'AIChat', command: 'aichat', category: 'Shell / pipelines' },
-  { label: 'Terminal-GPT', command: 'tgpt', category: 'Shell / pipelines' },
-  { label: 'Chatblade', command: 'chatblade', category: 'Shell / pipelines' },
-  { label: 'gptcli', command: 'gptcli', category: 'Shell / pipelines' },
-
-  // 5. Automação de sistema/SO
-  { label: 'Open Interpreter', command: 'interpreter', category: 'Automação de SO' },
-  { label: 'Goose', command: 'goose', category: 'Automação de SO' },
-  { label: 'Letta (MemGPT)', command: 'letta', category: 'Automação de SO' },
-  { label: 'Warp AI', command: 'warp', category: 'Automação de SO' },
-
-  // 6. Roteadores / gateways
-  { label: 'OmniRoute CLI', command: 'omniroute', category: 'Roteadores / gateways' },
-  { label: 'LiteLLM', command: 'litellm', category: 'Roteadores / gateways' },
+  // === Externas compatíveis (via OPENAI_BASE_URL=http://localhost:20128/v1) ===
+  { label: 'Amazon Q', command: 'q chat', category: 'Externas (compatíveis)' },
+  { label: 'Sourcegraph Amp', command: 'amp', category: 'Externas (compatíveis)' },
+  { label: 'OpenHands', command: 'openhands', category: 'Externas (compatíveis)' },
+  { label: 'Plandex', command: 'plandex', category: 'Externas (compatíveis)' },
+  { label: 'Windsurf / Codeium', command: 'windsurf', category: 'Externas (compatíveis)' },
+  { label: 'aichat', command: 'aichat', category: 'Externas (compatíveis)' },
+  { label: 'shell-gpt', command: 'sgpt', category: 'Externas (compatíveis)' },
+  { label: 'mods', command: 'mods', category: 'Externas (compatíveis)' },
+  { label: 'llm', command: 'llm', category: 'Externas (compatíveis)' },
+  { label: 'fabric', command: 'fabric', category: 'Externas (compatíveis)' },
 ];
 
-export const CLI_CATEGORIES: readonly CliCategory[] = [
-  'Provedores oficiais',
-  'Agentes de código',
-  'Motores locais',
-  'Shell / pipelines',
-  'Automação de SO',
-  'Roteadores / gateways',
-];
+export const CLI_CATEGORIES: readonly CliCategory[] = ['Code', 'Agent', 'Externas (compatíveis)'];
 
 /** CLIs que podem virar nó Agente gerenciado (adaptador estruturado existente). */
 export const MANAGED_HARNESSES: readonly string[] = CLI_CATALOG.filter((c) => c.managed).map((c) => c.command);

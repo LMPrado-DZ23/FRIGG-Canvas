@@ -23,7 +23,7 @@ export function TerminalNode(props: NodeProps): JSX.Element {
           {CLI_CATEGORIES.map((cat) => (
             <optgroup key={cat} label={cat}>
               {CLI_CATALOG.filter((c) => c.category === cat).map((c) => (
-                <option key={c.label} value={c.command}>{c.label}{c.managed ? ' ★' : ''}</option>
+                <option key={c.label} value={c.command}>{c.label}{c.managed ? ' ★' : ''}{c.enabled === false ? ' (fora do painel)' : ''}</option>
               ))}
             </optgroup>
           ))}

@@ -17,7 +17,7 @@ import { startCodexSession } from './adapters/codex-adapter.js';
 import type { ManagedSession } from './adapters/types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OMNIROUTE_BASE_URL = process.env['FRIGG_OMNIROUTE_URL'] ?? 'http://127.0.0.1:8787';
+const OMNIROUTE_BASE_URL = process.env['FRIGG_OMNIROUTE_URL'] ?? 'http://localhost:20128';
 const DEV_URL = process.env['FRIGG_DEV_URL'];
 
 const omni = new OmniRouteClient({
@@ -84,6 +84,7 @@ function registerIpc(): void {
     const cb = {
       onEvent: (event: import('../core/turn-state.js').SessionEvent) => send('agent:event', { id, event }),
       onCost: (usd: number) => send('agent:cost', { id, usd }),
+      onOutput: (text: string) => send('agent:output', { id, text }),
     };
     let handle: ManagedSession;
     if (harness === 'claude') {
