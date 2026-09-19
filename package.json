@@ -1,0 +1,17 @@
+{
+  "name": "frigg-canvas",
+  "version": "0.0.1",
+  "private": true,
+  "description": "FRIGG — canvas + orquestração de agentes sobre OmniRoute (serviço headless)",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
