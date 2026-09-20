@@ -30,6 +30,19 @@ cpSync(src, out, { recursive: true });
 const app = join(out, 'resources', 'app');
 mkdirSync(app, { recursive: true });
 cpSync(join(root, 'dist'), join(app, 'dist'), { recursive: true });
+
+// Dependências nativas em runtime (main.cjs as declara como external): copia o
+// scope @lydell (node-pty + binário prebuilt win32-x64) para o app empacotado.
+const lydellSrc = join(root, 'node_modules', '@lydell');
+if (existsSync(lydellSrc)) {
+  const lydellDst = join(app, 'node_modules', '@lydell');
+  mkdirSync(lydellDst, { recursive: true });
+  cpSync(lydellSrc, lydellDst, { recursive: true });
+  console.log('incluído: @lydell/node-pty (terminais reais)');
+} else {
+  console.warn('AVISO: @lydell não encontrado — terminais ficarão indisponíveis no exe.');
+}
+
 writeFileSync(
   join(app, 'package.json'),
   JSON.stringify({ name: 'frigg-canvas', version: '0.0.1', main: 'dist/main/main.cjs' }, null, 2),

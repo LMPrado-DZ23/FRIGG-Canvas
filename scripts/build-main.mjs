@@ -2,7 +2,7 @@
 // Nativos e electron ficam como external (resolvidos em runtime).
 import { build } from 'esbuild';
 
-const external = ['electron', '@homebridge/node-pty-prebuilt-multiarch', 'node-pty', 'better-sqlite3'];
+const external = ['electron', '@lydell/node-pty', '@homebridge/node-pty-prebuilt-multiarch', 'node-pty', 'better-sqlite3'];
 
 const common = {
   bundle: true,

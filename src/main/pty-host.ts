@@ -23,11 +23,12 @@ let mod: PtyModule | null = null;
 let loadError: string | null = null;
 let attempted = false;
 
-async function ensureLoaded(): Promise<void> {
+export async function ensurePtyLoaded(): Promise<void> {
   if (attempted) return;
   attempted = true;
   try {
-    mod = (await import('@homebridge/node-pty-prebuilt-multiarch')) as unknown as PtyModule;
+    // @lydell/node-pty usa prebuilds N-API (ABI-estável Node/Electron, sem compilador).
+    mod = (await import('@lydell/node-pty')) as unknown as PtyModule;
   } catch (err) {
     loadError = err instanceof Error ? err.message : String(err);
     mod = null;
@@ -54,7 +55,7 @@ export class PtyHost {
   constructor(private readonly cb: PtyHostCallbacks) {}
 
   async start(id: string, cols: number, rows: number, cwd: string, command?: string): Promise<{ ok: boolean; detail: string }> {
-    await ensureLoaded();
+    await ensurePtyLoaded();
     if (!mod) return { ok: false, detail: `PTY indisponível: ${loadError ?? 'módulo não carregado'}` };
     if (this.procs.has(id)) return { ok: false, detail: 'id de terminal já em uso' };
     const shell = command && command.length > 0 ? command : defaultShell;

@@ -24,7 +24,7 @@ process.on('unhandledRejection', (e) => log(`unhandledRejection: ${String(e)}`))
 import { OmniRouteClient } from '../core/omniroute-client.js';
 import { parseWorkspace, type WorkspaceDoc } from '../core/workspace.js';
 import { JsonFileStore } from './storage.js';
-import { PtyHost, isPtyAvailable, ptyLoadError } from './pty-host.js';
+import { PtyHost, isPtyAvailable, ptyLoadError, ensurePtyLoaded } from './pty-host.js';
 import { startClaudeSession } from './adapters/claude-adapter.js';
 import { startCodexSession } from './adapters/codex-adapter.js';
 import type { ManagedSession } from './adapters/types.js';
@@ -94,10 +94,16 @@ function registerIpc(): void {
     store.save(valid);
     return { ok: true };
   });
-  ipcMain.handle('pty:available', async () => ({ available: isPtyAvailable(), detail: ptyLoadError() ?? 'ok' }));
-  ipcMain.handle('pty:start', async (_e, id: string, cols: number, rows: number, command?: string) =>
-    pty.start(String(id), Number(cols), Number(rows), app.getPath('home'), command),
-  );
+  ipcMain.handle('pty:available', async () => {
+    await ensurePtyLoaded();
+    const ok = isPtyAvailable();
+    log(`pty:available -> ${ok} (${ptyLoadError() ?? 'ok'})`);
+    return { available: ok, detail: ok ? 'ok' : (ptyLoadError() ?? 'binário não carregado') };
+  });
+  ipcMain.handle('pty:start', async (_e, id: string, cols: number, rows: number, command?: string) => {
+    log(`pty:start id=${id} cmd=${command ?? 'shell'}`);
+    return pty.start(String(id), Number(cols), Number(rows), app.getPath('home'), command);
+  });
   ipcMain.on('pty:write', (_e, id: string, data: string) => pty.write(String(id), String(data)));
   ipcMain.on('pty:resize', (_e, id: string, cols: number, rows: number) =>
     pty.resize(String(id), Number(cols), Number(rows)),
