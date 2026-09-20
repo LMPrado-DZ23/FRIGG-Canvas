@@ -5,7 +5,7 @@
  * OmniRoute ausente = INDISPONÍVEL (nunca simula saúde). PTY/persistência degradam
  * com honestidade.
  */
-import { app, BrowserWindow, ipcMain, Menu, dialog, type WebContents } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, dialog, shell, type WebContents } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appendFileSync } from 'node:fs';
@@ -111,6 +111,17 @@ function registerIpc(): void {
       ? await dialog.showOpenDialog(win, { properties: ['openDirectory'] })
       : await dialog.showOpenDialog({ properties: ['openDirectory'] });
     return res.canceled || res.filePaths.length === 0 ? null : res.filePaths[0];
+  });
+  ipcMain.handle('dialog:pickFile', async () => {
+    const win = mainWindow;
+    const res = win
+      ? await dialog.showOpenDialog(win, { properties: ['openFile'] })
+      : await dialog.showOpenDialog({ properties: ['openFile'] });
+    return res.canceled || res.filePaths.length === 0 ? null : res.filePaths[0];
+  });
+  ipcMain.handle('file:open', async (_e, p: string) => {
+    if (typeof p === 'string' && p.length > 0) await shell.openPath(p);
+    return { ok: true };
   });
   ipcMain.on('pty:write', (_e, id: string, data: string) => pty.write(String(id), String(data)));
   ipcMain.on('pty:resize', (_e, id: string, cols: number, rows: number) =>

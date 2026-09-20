@@ -10,6 +10,8 @@ export const KIND_ICON: Record<NodeKind, string> = {
   note: '📝',
   text: '🔤',
   image: '🖼️',
+  file: '📄',
+  draw: '✏️',
   health: '📡',
 };
 

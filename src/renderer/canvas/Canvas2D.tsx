@@ -8,6 +8,8 @@ import { HealthNode } from './nodes/HealthNode.js';
 import { BrowserNode } from './nodes/BrowserNode.js';
 import { TextNode } from './nodes/TextNode.js';
 import { ImageNode } from './nodes/ImageNode.js';
+import { FileNode } from './nodes/FileNode.js';
+import { DrawNode } from './nodes/DrawNode.js';
 
 const nodeTypes: NodeTypes = {
   terminal: TerminalNode,
@@ -17,6 +19,8 @@ const nodeTypes: NodeTypes = {
   browser: BrowserNode,
   text: TextNode,
   image: ImageNode,
+  file: FileNode,
+  draw: DrawNode,
 };
 
 export function Canvas2D(): JSX.Element {

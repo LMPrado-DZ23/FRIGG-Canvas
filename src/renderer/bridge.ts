@@ -21,6 +21,14 @@ export const bridge: FriggApi = real ?? {
     async pickFolder(): Promise<string | null> {
       return null;
     },
+    async pickFile(): Promise<string | null> {
+      return null;
+    },
+  },
+  file: {
+    async open(): Promise<{ ok: boolean }> {
+      return { ok: true };
+    },
   },
   workspace: {
     async load(): Promise<{ library: WorkspaceLibrary; recovered: boolean }> {

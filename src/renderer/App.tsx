@@ -8,6 +8,7 @@ import { OperationView } from './OperationView.js';
 import { healthLabel } from '../core/omniroute-client.js';
 import { startWorkflow, pumpWorkflow } from './orchestrate.js';
 import { TEAM_TEMPLATES } from './templates.js';
+import { NewTerminalModal } from './NewTerminalModal.js';
 
 // D04: o módulo 3D (Three.js) carrega sob demanda — não pesa no canvas 2D.
 const Office3D = lazy(() => import('./office/Office3D.js').then((m) => ({ default: m.Office3D })));
@@ -35,6 +36,7 @@ export function App(): JSX.Element {
   const setWorkflowRunning = useFrigg((s) => s.setWorkflowRunning);
   const addTemplate = useFrigg((s) => s.addTemplate);
   const [wfMsg, setWfMsg] = useState<string | null>(null);
+  const [showNewTerminal, setShowNewTerminal] = useState(false);
 
   // Bootstrap: carrega workspace, sonda saúde/PTY e escuta eventos de agente.
   useEffect(() => {
@@ -88,7 +90,10 @@ export function App(): JSX.Element {
           <button className="btn tool" title="Nota" onClick={() => addNode('note')}>📝</button>
           <button className="btn tool" title="Texto" onClick={() => addNode('text')}>🔤</button>
           <button className="btn tool" title="Imagem" onClick={() => addNode('image')}>🖼️</button>
+          <button className="btn tool" title="Arquivo" onClick={() => addNode('file')}>📄</button>
+          <button className="btn tool" title="Desenho" onClick={() => addNode('draw')}>✏️</button>
         </div>
+        <button className="btn" title="Novo terminal (assistente)" onClick={() => setShowNewTerminal(true)}>Novo terminal…</button>
         <select
           className="btn"
           value=""
@@ -133,6 +138,7 @@ export function App(): JSX.Element {
         </div>
         <SidePanel />
       </div>
+      <NewTerminalModal open={showNewTerminal} onClose={() => setShowNewTerminal(false)} />
     </div>
   );
 }

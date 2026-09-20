@@ -37,7 +37,8 @@ export interface PtyExitEvent {
 
 export interface FriggApi {
   omniroute: { health(): Promise<HealthResult> };
-  dialog: { pickFolder(): Promise<string | null> };
+  dialog: { pickFolder(): Promise<string | null>; pickFile(): Promise<string | null> };
+  file: { open(path: string): Promise<{ ok: boolean }> };
   workspace: {
     load(): Promise<{ library: WorkspaceLibrary; recovered: boolean }>;
     save(library: WorkspaceLibrary): Promise<{ ok: boolean }>;
@@ -68,6 +69,10 @@ const api: FriggApi = {
   },
   dialog: {
     pickFolder: () => ipcRenderer.invoke('dialog:pickFolder') as Promise<string | null>,
+    pickFile: () => ipcRenderer.invoke('dialog:pickFile') as Promise<string | null>,
+  },
+  file: {
+    open: (path) => ipcRenderer.invoke('file:open', path) as Promise<{ ok: boolean }>,
   },
   workspace: {
     load: () => ipcRenderer.invoke('workspace:load') as Promise<{ library: WorkspaceLibrary; recovered: boolean }>,

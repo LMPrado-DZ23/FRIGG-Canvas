@@ -194,7 +194,11 @@ export const useFrigg = create<FriggState>((set, get) => ({
                 ? { text: 'Título' }
                 : kind === 'image'
                   ? { url: '' }
-                  : { title: 'OmniRoute' };
+                  : kind === 'file'
+                    ? { title: 'Arquivo', path: '' }
+                    : kind === 'draw'
+                      ? { title: 'Desenho', image: '' }
+                      : { title: 'OmniRoute' };
     set((s) => ({ nodes: [...s.nodes, { id, kind, position, data: { ...base, ...data } }], selectedId: id }));
     return id;
   },
