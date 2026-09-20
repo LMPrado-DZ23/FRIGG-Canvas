@@ -72,6 +72,59 @@ function parseEdge(v: unknown, i: number): WorkspaceEdge {
   return { id, source, target };
 }
 
+/** Biblioteca de workspaces (multi-projeto). Formato em disco versão 2. */
+export interface WorkspaceEntry {
+  readonly id: string;
+  readonly name: string;
+  readonly nodes: readonly WorkspaceNode[];
+  readonly edges: readonly WorkspaceEdge[];
+}
+export interface WorkspaceLibrary {
+  readonly version: 2;
+  readonly activeId: string;
+  readonly workspaces: readonly WorkspaceEntry[];
+}
+
+let wsCounter = 0;
+export function newWorkspaceId(): string {
+  return `ws-${Date.now().toString(36)}-${(wsCounter++).toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+export function emptyLibrary(): WorkspaceLibrary {
+  const id = newWorkspaceId();
+  return { version: 2, activeId: id, workspaces: [{ id, name: 'Workspace 1', nodes: [], edges: [] }] };
+}
+
+/**
+ * Aceita o formato novo (v2, biblioteca) OU o antigo (v1, doc único) e migra.
+ * Nunca lança: em caso irrecuperável, retorna biblioteca vazia.
+ */
+export function parseLibrary(v: unknown): WorkspaceLibrary {
+  try {
+    if (isObj(v) && v['version'] === 2 && Array.isArray(v['workspaces'])) {
+      const entries: WorkspaceEntry[] = [];
+      for (const raw of v['workspaces']) {
+        if (!isObj(raw)) continue;
+        const doc = parseWorkspace({ version: 1, name: raw['name'], nodes: raw['nodes'], edges: raw['edges'] });
+        const id = typeof raw['id'] === 'string' && raw['id'] ? (raw['id'] as string) : newWorkspaceId();
+        entries.push({ id, name: doc.name, nodes: doc.nodes, edges: doc.edges });
+      }
+      if (entries.length === 0) return emptyLibrary();
+      const activeId =
+        typeof v['activeId'] === 'string' && entries.some((e) => e.id === v['activeId'])
+          ? (v['activeId'] as string)
+          : entries[0]!.id;
+      return { version: 2, activeId, workspaces: entries };
+    }
+    // Migração do formato antigo (v1, doc único).
+    const doc = parseWorkspace(v);
+    const id = newWorkspaceId();
+    return { version: 2, activeId: id, workspaces: [{ id, name: doc.name || 'Workspace 1', nodes: doc.nodes, edges: doc.edges }] };
+  } catch {
+    return emptyLibrary();
+  }
+}
+
 /** Valida ANTES de gravar/usar. Lança em documento inválido. */
 export function parseWorkspace(v: unknown): WorkspaceDoc {
   if (!isObj(v)) throw new Error('workspace não é objeto');

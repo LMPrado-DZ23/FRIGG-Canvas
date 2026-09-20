@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { WorkspaceDoc, WorkspaceNode, WorkspaceEdge, NodeKind } from '../core/workspace.js';
-import { emptyWorkspace } from '../core/workspace.js';
+import type { WorkspaceNode, WorkspaceEdge, NodeKind, WorkspaceLibrary } from '../core/workspace.js';
+import { newWorkspaceId } from '../core/workspace.js';
 import { initialSessionState, reduce, type AgentSessionState, type SessionEvent } from '../core/turn-state.js';
 import type { HealthResult } from '../core/omniroute-client.js';
 import { roleById } from '../core/roles.js';
@@ -52,6 +52,9 @@ interface FriggState {
   objective: string;
   workflowRunning: boolean;
   agentTemplates: AgentTemplate[];
+  workspaces: { id: string; name: string }[];
+  activeWorkspaceId: string;
+  inactiveDocs: Record<string, { nodes: WorkspaceNode[]; edges: WorkspaceEdge[] }>;
 
   setView: (v: ViewMode) => void;
   select: (id: string | null) => void;
@@ -59,8 +62,12 @@ interface FriggState {
   setPty: (p: { available: boolean; detail: string }) => void;
   setObjective: (s: string) => void;
   setWorkflowRunning: (b: boolean) => void;
-  loadDoc: (doc: WorkspaceDoc, recovered: boolean) => void;
-  toDoc: () => WorkspaceDoc;
+  loadLibrary: (lib: WorkspaceLibrary, recovered: boolean) => void;
+  toLibrary: () => WorkspaceLibrary;
+  switchWorkspace: (id: string) => void;
+  addWorkspace: (name?: string) => void;
+  renameWorkspace: (id: string, name: string) => void;
+  deleteWorkspace: (id: string) => void;
   addNode: (kind: NodeKind, at?: { x: number; y: number }, data?: Record<string, unknown>) => string;
   moveNode: (id: string, x: number, y: number) => void;
   patchNodeData: (id: string, data: Record<string, unknown>) => void;
@@ -90,6 +97,9 @@ export const useFrigg = create<FriggState>((set, get) => ({
   objective: '',
   workflowRunning: false,
   agentTemplates: loadTemplates(),
+  workspaces: [],
+  activeWorkspaceId: '',
+  inactiveDocs: {},
 
   setView: (view) => set({ view }),
   select: (selectedId) => set({ selectedId }),
@@ -98,8 +108,75 @@ export const useFrigg = create<FriggState>((set, get) => ({
   setObjective: (objective) => set({ objective }),
   setWorkflowRunning: (workflowRunning) => set({ workflowRunning }),
 
-  loadDoc: (doc, recovered) => set({ nodes: [...doc.nodes], edges: [...doc.edges], recovered }),
-  toDoc: () => ({ ...emptyWorkspace('FRIGG'), nodes: get().nodes, edges: get().edges }),
+  loadLibrary: (lib, recovered) =>
+    set(() => {
+      const active = lib.workspaces.find((w) => w.id === lib.activeId) ?? lib.workspaces[0]!;
+      const inactiveDocs: Record<string, { nodes: WorkspaceNode[]; edges: WorkspaceEdge[] }> = {};
+      for (const w of lib.workspaces) {
+        if (w.id !== active.id) inactiveDocs[w.id] = { nodes: [...w.nodes], edges: [...w.edges] };
+      }
+      return {
+        workspaces: lib.workspaces.map((w) => ({ id: w.id, name: w.name })),
+        activeWorkspaceId: active.id,
+        nodes: [...active.nodes],
+        edges: [...active.edges],
+        inactiveDocs,
+        recovered,
+        selectedId: null,
+      };
+    }),
+
+  toLibrary: () => {
+    const s = get();
+    const workspaces = s.workspaces.map((w) =>
+      w.id === s.activeWorkspaceId
+        ? { id: w.id, name: w.name, nodes: s.nodes, edges: s.edges }
+        : { id: w.id, name: w.name, ...(s.inactiveDocs[w.id] ?? { nodes: [], edges: [] }) },
+    );
+    return { version: 2, activeId: s.activeWorkspaceId, workspaces };
+  },
+
+  switchWorkspace: (id) =>
+    set((s) => {
+      if (id === s.activeWorkspaceId) return s;
+      if (!s.workspaces.some((w) => w.id === id)) return s; // ignora id inválido (não corrompe)
+      const inactiveDocs = { ...s.inactiveDocs, [s.activeWorkspaceId]: { nodes: s.nodes, edges: s.edges } };
+      const target = inactiveDocs[id] ?? { nodes: [], edges: [] };
+      delete inactiveDocs[id];
+      return { activeWorkspaceId: id, nodes: [...target.nodes], edges: [...target.edges], inactiveDocs, selectedId: null };
+    }),
+
+  addWorkspace: (name) =>
+    set((s) => {
+      const id = newWorkspaceId();
+      const inactiveDocs = { ...s.inactiveDocs, [s.activeWorkspaceId]: { nodes: s.nodes, edges: s.edges } };
+      return {
+        workspaces: [...s.workspaces, { id, name: name && name.trim() ? name.trim() : `Workspace ${s.workspaces.length + 1}` }],
+        activeWorkspaceId: id,
+        nodes: [],
+        edges: [],
+        inactiveDocs,
+        selectedId: null,
+      };
+    }),
+
+  renameWorkspace: (id, name) =>
+    set((s) => ({ workspaces: s.workspaces.map((w) => (w.id === id ? { ...w, name } : w)) })),
+
+  deleteWorkspace: (id) =>
+    set((s) => {
+      if (s.workspaces.length <= 1) return s;
+      const remaining = s.workspaces.filter((w) => w.id !== id);
+      const inactiveDocs = { ...s.inactiveDocs };
+      delete inactiveDocs[id];
+      if (id === s.activeWorkspaceId) {
+        const next = remaining[0]!;
+        const doc = inactiveDocs[next.id] ?? { nodes: [], edges: [] };
+        delete inactiveDocs[next.id];
+        return { workspaces: remaining, activeWorkspaceId: next.id, nodes: [...doc.nodes], edges: [...doc.edges], inactiveDocs, selectedId: null };
+      }
+      return { workspaces: remaining, inactiveDocs };
+    }),
 
   addNode: (kind, at, data) => {
     const id = newId(kind);

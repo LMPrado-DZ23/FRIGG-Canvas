@@ -18,10 +18,13 @@ export function App(): JSX.Element {
   const health = useFrigg((s) => s.health);
   const setHealth = useFrigg((s) => s.setHealth);
   const setPty = useFrigg((s) => s.setPty);
-  const loadDoc = useFrigg((s) => s.loadDoc);
+  const loadLibrary = useFrigg((s) => s.loadLibrary);
   const addNode = useFrigg((s) => s.addNode);
-  const toDoc = useFrigg((s) => s.toDoc);
+  const toLibrary = useFrigg((s) => s.toLibrary);
   const nodes = useFrigg((s) => s.nodes);
+  const edges = useFrigg((s) => s.edges);
+  const workspaces = useFrigg((s) => s.workspaces);
+  const activeWorkspaceId = useFrigg((s) => s.activeWorkspaceId);
 
   const applyEvent = useFrigg((s) => s.applyEvent);
   const setOutput = useFrigg((s) => s.setOutput);
@@ -35,7 +38,7 @@ export function App(): JSX.Element {
 
   // Bootstrap: carrega workspace, sonda saúde/PTY e escuta eventos de agente.
   useEffect(() => {
-    void bridge.workspace.load().then((r) => loadDoc(r.doc, r.recovered));
+    void bridge.workspace.load().then((r) => loadLibrary(r.library, r.recovered));
     void bridge.pty.available().then(setPty);
     const tick = (): void => void bridge.omniroute.health().then(setHealth);
     tick();
@@ -52,7 +55,7 @@ export function App(): JSX.Element {
       offOutput();
       offCost();
     };
-  }, [loadDoc, setHealth, setPty, applyEvent, setOutput, addCost]);
+  }, [loadLibrary, setHealth, setPty, applyEvent, setOutput, addCost]);
 
   const onOrchestrate = (): void => {
     if (workflowRunning) {
@@ -66,9 +69,9 @@ export function App(): JSX.Element {
 
   // Autosave (debounce simples) quando os nós mudam.
   useEffect(() => {
-    const t = setTimeout(() => void bridge.workspace.save(toDoc()), 600);
+    const t = setTimeout(() => void bridge.workspace.save(toLibrary()), 600);
     return () => clearTimeout(t);
-  }, [nodes, toDoc]);
+  }, [nodes, edges, workspaces, activeWorkspaceId, toLibrary]);
 
   const hp = health?.status ?? 'unknown';
   const healthClass = hp === 'reachable' ? 'ok' : hp === 'unavailable' ? 'down' : 'unknown';

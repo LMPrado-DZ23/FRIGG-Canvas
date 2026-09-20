@@ -4,7 +4,7 @@
  */
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import type { HealthResult } from '../core/omniroute-client.js';
-import type { WorkspaceDoc } from '../core/workspace.js';
+import type { WorkspaceLibrary } from '../core/workspace.js';
 import type { SessionEvent } from '../core/turn-state.js';
 
 export interface AgentEvent {
@@ -39,8 +39,8 @@ export interface FriggApi {
   omniroute: { health(): Promise<HealthResult> };
   dialog: { pickFolder(): Promise<string | null> };
   workspace: {
-    load(): Promise<{ doc: WorkspaceDoc; recovered: boolean }>;
-    save(doc: WorkspaceDoc): Promise<{ ok: boolean }>;
+    load(): Promise<{ library: WorkspaceLibrary; recovered: boolean }>;
+    save(library: WorkspaceLibrary): Promise<{ ok: boolean }>;
   };
   pty: {
     available(): Promise<{ available: boolean; detail: string }>;
@@ -70,8 +70,8 @@ const api: FriggApi = {
     pickFolder: () => ipcRenderer.invoke('dialog:pickFolder') as Promise<string | null>,
   },
   workspace: {
-    load: () => ipcRenderer.invoke('workspace:load') as Promise<{ doc: WorkspaceDoc; recovered: boolean }>,
-    save: (doc) => ipcRenderer.invoke('workspace:save', doc) as Promise<{ ok: boolean }>,
+    load: () => ipcRenderer.invoke('workspace:load') as Promise<{ library: WorkspaceLibrary; recovered: boolean }>,
+    save: (library) => ipcRenderer.invoke('workspace:save', library) as Promise<{ ok: boolean }>,
   },
   pty: {
     available: () => ipcRenderer.invoke('pty:available') as Promise<{ available: boolean; detail: string }>,

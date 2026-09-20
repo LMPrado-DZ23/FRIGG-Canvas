@@ -22,7 +22,7 @@ function log(msg: string): void {
 process.on('uncaughtException', (e) => log(`uncaughtException: ${e instanceof Error ? e.stack ?? e.message : String(e)}`));
 process.on('unhandledRejection', (e) => log(`unhandledRejection: ${String(e)}`));
 import { OmniRouteClient } from '../core/omniroute-client.js';
-import { parseWorkspace, type WorkspaceDoc } from '../core/workspace.js';
+import { parseLibrary, type WorkspaceLibrary } from '../core/workspace.js';
 import { JsonFileStore } from './storage.js';
 import { PtyHost, isPtyAvailable, ptyLoadError, ensurePtyLoaded } from './pty-host.js';
 import { startClaudeSession } from './adapters/claude-adapter.js';
@@ -89,8 +89,8 @@ function registerIpc(): void {
     return omni.probeHealth();
   });
   ipcMain.handle('workspace:load', async () => store.loadOrEmpty());
-  ipcMain.handle('workspace:save', async (_e, doc: unknown) => {
-    const valid: WorkspaceDoc = parseWorkspace(doc);
+  ipcMain.handle('workspace:save', async (_e, library: unknown) => {
+    const valid: WorkspaceLibrary = parseLibrary(library);
     store.save(valid);
     return { ok: true };
   });

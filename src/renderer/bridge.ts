@@ -5,7 +5,7 @@
  */
 import type { FriggApi } from '../preload/preload.js';
 import type { HealthResult } from '../core/omniroute-client.js';
-import { emptyWorkspace, type WorkspaceDoc } from '../core/workspace.js';
+import { emptyLibrary, type WorkspaceLibrary } from '../core/workspace.js';
 
 const real: FriggApi | undefined = (globalThis as { frigg?: FriggApi }).frigg;
 
@@ -23,18 +23,18 @@ export const bridge: FriggApi = real ?? {
     },
   },
   workspace: {
-    async load(): Promise<{ doc: WorkspaceDoc; recovered: boolean }> {
+    async load(): Promise<{ library: WorkspaceLibrary; recovered: boolean }> {
       try {
-        const raw = localStorage.getItem('frigg:workspace');
-        if (raw) return { doc: JSON.parse(raw) as WorkspaceDoc, recovered: true };
+        const raw = localStorage.getItem('frigg:library');
+        if (raw) return { library: JSON.parse(raw) as WorkspaceLibrary, recovered: true };
       } catch {
         /* ignore */
       }
-      return { doc: emptyWorkspace('FRIGG'), recovered: false };
+      return { library: emptyLibrary(), recovered: false };
     },
-    async save(doc: WorkspaceDoc): Promise<{ ok: boolean }> {
+    async save(library: WorkspaceLibrary): Promise<{ ok: boolean }> {
       try {
-        localStorage.setItem('frigg:workspace', JSON.stringify(doc));
+        localStorage.setItem('frigg:library', JSON.stringify(library));
       } catch {
         /* ignore */
       }
