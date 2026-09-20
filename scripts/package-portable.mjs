@@ -9,12 +9,15 @@
  *   se faltar: `node node_modules/electron/install.js`).
  */
 import { cpSync, rmSync, mkdirSync, writeFileSync, renameSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { createRequire } from 'node:module';
 
 const root = process.cwd();
-const src = join(root, 'node_modules', 'electron', 'dist');
-if (!existsSync(join(src, 'electron.exe'))) {
-  console.error('electron.exe ausente. Rode: node node_modules/electron/install.js');
+const require = createRequire(import.meta.url);
+const electronBinary = require('electron');
+const src = dirname(electronBinary);
+if (process.platform !== 'win32' || !existsSync(electronBinary) || !electronBinary.toLowerCase().endsWith('electron.exe')) {
+  console.error('O pacote portátil Windows deve ser gerado no Windows com o Electron instalado.');
   process.exit(1);
 }
 if (!existsSync(join(root, 'dist', 'main', 'main.cjs'))) {
