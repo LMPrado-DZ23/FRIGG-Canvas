@@ -1,5 +1,27 @@
 import { useFrigg } from './store.js';
+import { bridge } from './bridge.js';
 import { ROLES, roleById } from '../core/roles.js';
+import { nodeTitle } from './node-label.js';
+
+function WorkDirField({ nodeId }: { nodeId: string }): JSX.Element {
+  const node = useFrigg((s) => s.nodes.find((n) => n.id === nodeId));
+  const patch = useFrigg((s) => s.patchNodeData);
+  const cwd = typeof node?.data['cwd'] === 'string' ? (node.data['cwd'] as string) : '';
+  const pick = async (): Promise<void> => {
+    const dir = await bridge.dialog.pickFolder();
+    if (dir) patch(nodeId, { cwd: dir });
+  };
+  return (
+    <>
+      <label>Pasta de trabalho</label>
+      <div style={{ display: 'flex', gap: 4 }}>
+        <input className="fld" style={{ flex: 1 }} value={cwd} placeholder="padrão (home)" onChange={(e) => patch(nodeId, { cwd: e.target.value })} />
+        <button className="btn" onClick={() => void pick()} title="Escolher pasta">📁</button>
+        {cwd ? <button className="btn mini" onClick={() => patch(nodeId, { cwd: '' })} title="Limpar">✕</button> : null}
+      </div>
+    </>
+  );
+}
 
 function AgentEditor({ nodeId }: { nodeId: string }): JSX.Element {
   const node = useFrigg((s) => s.nodes.find((n) => n.id === nodeId));
@@ -45,6 +67,8 @@ function AgentEditor({ nodeId }: { nodeId: string }): JSX.Element {
 
       <label>Modelo (opcional)</label>
       <input className="fld" value={model} placeholder="ex.: sonnet, gpt-5.6…" onChange={(e) => patch(nodeId, { model: e.target.value })} />
+
+      <WorkDirField nodeId={nodeId} />
     </div>
   );
 }
@@ -67,10 +91,15 @@ export function SidePanel(): JSX.Element {
 
   return (
     <div className="side">
-      <h3>{String(node.data['name'] ?? node.data['title'] ?? node.kind)}</h3>
+      <h3>{nodeTitle(node)}</h3>
       <div className="muted">tipo: {node.kind} · id: {node.id}</div>
       {node.kind === 'agent' ? <AgentEditor nodeId={node.id} /> : null}
-      {node.kind === 'terminal' ? <p className="muted">CLI: {String(node.data['command'] || 'shell')}</p> : null}
+      {node.kind === 'terminal' ? (
+        <div className="agent-editor">
+          <p className="muted" style={{ margin: 0 }}>CLI: {String(node.data['command'] || 'shell')}</p>
+          <WorkDirField nodeId={node.id} />
+        </div>
+      ) : null}
       {node.kind === 'browser' ? <p className="muted">URL: {String(node.data['url'] || '')}</p> : null}
       <button className="btn" style={{ marginTop: 10 }} onClick={() => selectedId && remove(selectedId)}>Remover nó</button>
     </div>

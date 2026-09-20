@@ -4,7 +4,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { bridge } from '../../bridge.js';
 
 /** Terminal PTY real (G1). Se o PTY não estiver disponível, mostra a limitação. */
-export function TerminalView({ id, command }: { id: string; command?: string }): JSX.Element {
+export function TerminalView({ id, command, cwd }: { id: string; command?: string; cwd?: string }): JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [warn, setWarn] = useState<string | null>(null);
 
@@ -41,7 +41,7 @@ export function TerminalView({ id, command }: { id: string; command?: string }):
         setWarn(`Terminal indisponível: ${avail.detail}. Instale o VS Build Tools ou o binário pré-compilado.`);
         return;
       }
-      const res = await bridge.pty.start(id, term.cols, term.rows, command);
+      const res = await bridge.pty.start(id, term.cols, term.rows, command, cwd);
       if (!res.ok && !disposed) setWarn(`Falha ao iniciar: ${res.detail}`);
     })();
 
@@ -64,7 +64,7 @@ export function TerminalView({ id, command }: { id: string; command?: string }):
       bridge.pty.kill(id);
       term.dispose();
     };
-  }, [id, command]);
+  }, [id, command, cwd]);
 
   return (
     <div className="term-wrap">

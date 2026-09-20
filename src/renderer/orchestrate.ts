@@ -64,7 +64,8 @@ export async function pumpWorkflow(): Promise<void> {
     const role = roleById(typeof node?.data['role'] === 'string' ? (node.data['role'] as string) : 'developer');
     const harness = (typeof node?.data['harness'] === 'string' && node.data['harness']) ? (node.data['harness'] as string) : (role?.harness ?? 'claude');
     const model = typeof node?.data['model'] === 'string' ? (node.data['model'] as string) : '';
-    const r = await bridge.agent.start(id, { prompt: composePrompt(id, g), harness, ...(model ? { model } : {}) });
+    const cwd = typeof node?.data['cwd'] === 'string' ? (node.data['cwd'] as string) : '';
+    const r = await bridge.agent.start(id, { prompt: composePrompt(id, g), harness, ...(model ? { model } : {}), ...(cwd ? { cwd } : {}) });
     if (!r.ok) {
       // não conseguiu iniciar: registra falha para não travar o fluxo
       useFrigg.getState().applyEvent(id, { type: 'turn.failed', turnId: 'start', error: r.detail });

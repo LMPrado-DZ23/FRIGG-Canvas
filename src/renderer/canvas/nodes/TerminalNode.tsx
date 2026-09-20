@@ -10,6 +10,7 @@ export function TerminalNode(props: NodeProps): JSX.Element {
   const patch = useFrigg((s) => s.patchNodeData);
   const title = typeof node?.data['title'] === 'string' ? (node.data['title'] as string) : 'Terminal';
   const command = typeof node?.data['command'] === 'string' ? (node.data['command'] as string) : '';
+  const cwd = typeof node?.data['cwd'] === 'string' ? (node.data['cwd'] as string) : '';
 
   return (
     <div className="node terminal">
@@ -32,7 +33,7 @@ export function TerminalNode(props: NodeProps): JSX.Element {
         <DeleteBtn id={nodeId} />
       </div>
       <div className="body">
-        <TerminalView id={nodeId} command={command} />
+        <TerminalView id={nodeId} command={command} cwd={cwd} />
       </div>
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />

@@ -22,6 +22,7 @@ export function AgentNode(props: NodeProps): JSX.Element {
   const harness = (typeof node?.data['harness'] === 'string' && node.data['harness']) ? (node.data['harness'] as string) : (role?.harness ?? 'claude');
   const systemPrompt = (typeof node?.data['systemPrompt'] === 'string' && node.data['systemPrompt']) ? (node.data['systemPrompt'] as string) : (role?.systemPrompt ?? '');
   const model = typeof node?.data['model'] === 'string' ? (node.data['model'] as string) : '';
+  const cwd = typeof node?.data['cwd'] === 'string' ? (node.data['cwd'] as string) : '';
 
   const visual = deriveVisual(slot?.state ?? initialSessionState(), { lastEventAt: slot?.lastEventAt ?? null });
   const active = visual.activity === 'working' || visual.activity === 'awaiting_approval' || visual.activity === 'cancelling';
@@ -33,7 +34,7 @@ export function AgentNode(props: NodeProps): JSX.Element {
       return;
     }
     const composed = `${systemPrompt}\n\n---\n\nTAREFA:\n${prompt}\n\nTrabalhe no diretório do projeto. Ao terminar, resuma o que fez.`;
-    const r = await bridge.agent.start(nodeId, { prompt: composed, harness, ...(model ? { model } : {}) });
+    const r = await bridge.agent.start(nodeId, { prompt: composed, harness, ...(model ? { model } : {}), ...(cwd ? { cwd } : {}) });
     setDetail(r.detail);
   };
   const cancel = async (): Promise<void> => {
