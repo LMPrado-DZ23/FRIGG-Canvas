@@ -63,8 +63,10 @@ export class PtyHost {
     await ensurePtyLoaded();
     if (!mod) return { ok: false, detail: `PTY indisponível: ${loadError ?? 'módulo não carregado'}` };
     if (this.procs.has(id)) return { ok: false, detail: 'id de terminal já em uso' };
-    const shell = command && command.length > 0 ? command : defaultShell;
-    const p = mod.spawn(shell, [], {
+    // SEMPRE abre o shell; se houver um comando (ex.: claude, codex, deepseek),
+    // ele é DIGITADO no shell. Assim o terminal fica vivo e mostra erro de CLI
+    // ausente ("não reconhecido") em vez de morrer com código críptico.
+    const p = mod.spawn(defaultShell, [], {
       name: 'xterm-color',
       cols: cols || 80,
       rows: rows || 24,
@@ -77,7 +79,17 @@ export class PtyHost {
       this.cb.onExit(id, e.exitCode);
     });
     this.procs.set(id, p);
-    return { ok: true, detail: shell };
+    if (command && command.trim().length > 0) {
+      const cmd = command.trim();
+      setTimeout(() => {
+        try {
+          p.write(`${cmd}\r`);
+        } catch {
+          /* processo pode ter saído */
+        }
+      }, 400);
+    }
+    return { ok: true, detail: command && command.trim() ? command.trim() : defaultShell };
   }
 
   write(id: string, data: string): void {
