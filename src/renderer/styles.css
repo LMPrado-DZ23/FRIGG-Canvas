@@ -67,6 +67,9 @@ body {
 .browser-bar { display: flex; gap: 4px; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--line); }
 .browser-bar .addr { flex: 1; background: #0d1526; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
 .btn.mini { padding: 3px 7px; }
+.toolbar { display: flex; gap: 2px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+.btn.tool { border: 0; background: transparent; font-size: 16px; padding: 5px 8px; }
+.btn.tool:hover { background: var(--panel); border-radius: 8px; }
 .node-x { margin-left: auto; color: var(--err); border-color: transparent; background: transparent; font-weight: 700; }
 .node-x:hover { border-color: var(--err); background: rgba(255,107,107,.12); }
 .node.browser { min-width: 560px; }

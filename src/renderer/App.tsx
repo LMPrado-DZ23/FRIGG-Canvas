@@ -78,20 +78,14 @@ export function App(): JSX.Element {
     <div className="app">
       <div className="topbar">
         <span className="brand">FRIGG</span>
-        <select
-          className="btn"
-          value=""
-          onChange={(e) => { if (e.target.value) { addNode(e.target.value as 'terminal'); } }}
-          title="Adicionar ao canvas"
-        >
-          <option value="">➕ Adicionar…</option>
-          <option value="terminal">⌨️ Terminal</option>
-          <option value="agent">🤖 Agente</option>
-          <option value="browser">🌐 Navegador</option>
-          <option value="note">📝 Nota</option>
-          <option value="text">🔤 Texto</option>
-          <option value="image">🖼️ Imagem</option>
-        </select>
+        <div className="toolbar">
+          <button className="btn tool" title="Terminal" onClick={() => addNode('terminal')}>⌨️</button>
+          <button className="btn tool" title="Agente" onClick={() => addNode('agent')}>🤖</button>
+          <button className="btn tool" title="Navegador" onClick={() => addNode('browser')}>🌐</button>
+          <button className="btn tool" title="Nota" onClick={() => addNode('note')}>📝</button>
+          <button className="btn tool" title="Texto" onClick={() => addNode('text')}>🔤</button>
+          <button className="btn tool" title="Imagem" onClick={() => addNode('image')}>🖼️</button>
+        </div>
         <select
           className="btn"
           value=""
