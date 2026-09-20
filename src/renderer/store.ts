@@ -3,8 +3,35 @@ import type { WorkspaceDoc, WorkspaceNode, WorkspaceEdge, NodeKind } from '../co
 import { emptyWorkspace } from '../core/workspace.js';
 import { initialSessionState, reduce, type AgentSessionState, type SessionEvent } from '../core/turn-state.js';
 import type { HealthResult } from '../core/omniroute-client.js';
+import { roleById } from '../core/roles.js';
 
 export type ViewMode = '2d' | '3d' | 'op';
+
+export interface AgentTemplate {
+  readonly id: string;
+  readonly name: string;
+  readonly role: string;
+  readonly systemPrompt: string;
+  readonly harness: string;
+  readonly model: string;
+}
+
+function loadTemplates(): AgentTemplate[] {
+  try {
+    const raw = localStorage.getItem('frigg:agentTemplates');
+    if (raw) return JSON.parse(raw) as AgentTemplate[];
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+function persistTemplates(t: AgentTemplate[]): void {
+  try {
+    localStorage.setItem('frigg:agentTemplates', JSON.stringify(t));
+  } catch {
+    /* ignore */
+  }
+}
 
 export interface SessionSlot {
   readonly state: AgentSessionState;
@@ -24,6 +51,7 @@ interface FriggState {
   recovered: boolean;
   objective: string;
   workflowRunning: boolean;
+  agentTemplates: AgentTemplate[];
 
   setView: (v: ViewMode) => void;
   select: (id: string | null) => void;
@@ -42,6 +70,9 @@ interface FriggState {
   applyEvent: (id: string, ev: SessionEvent, at?: number) => void;
   setOutput: (id: string, text: string) => void;
   addCost: (id: string, usd: number) => void;
+  saveAgentTemplate: (nodeId: string) => void;
+  addAgentFromTemplate: (templateId: string) => void;
+  removeAgentTemplate: (templateId: string) => void;
 }
 
 let counter = 0;
@@ -58,6 +89,7 @@ export const useFrigg = create<FriggState>((set, get) => ({
   recovered: false,
   objective: '',
   workflowRunning: false,
+  agentTemplates: loadTemplates(),
 
   setView: (view) => set({ view }),
   select: (selectedId) => set({ selectedId }),
@@ -146,5 +178,45 @@ export const useFrigg = create<FriggState>((set, get) => ({
     set((s) => {
       const slot = s.sessions[id] ?? { state: initialSessionState(), lastEventAt: Date.now() };
       return { sessions: { ...s.sessions, [id]: { ...slot, costUsd: (slot.costUsd ?? 0) + usd } } };
+    }),
+
+  saveAgentTemplate: (nodeId) =>
+    set((s) => {
+      const n = s.nodes.find((x) => x.id === nodeId);
+      if (!n) return s;
+      const d = n.data;
+      const roleId = typeof d['role'] === 'string' ? (d['role'] as string) : 'developer';
+      const name = (typeof d['name'] === 'string' && d['name']) ? (d['name'] as string) : (roleById(roleId)?.label ?? 'Agente');
+      const tpl: AgentTemplate = {
+        id: newId('tpl'),
+        name,
+        role: roleId,
+        systemPrompt: (typeof d['systemPrompt'] === 'string' ? (d['systemPrompt'] as string) : '') || (roleById(roleId)?.systemPrompt ?? ''),
+        harness: typeof d['harness'] === 'string' ? (d['harness'] as string) : 'claude',
+        model: typeof d['model'] === 'string' ? (d['model'] as string) : '',
+      };
+      const agentTemplates = [...s.agentTemplates, tpl];
+      persistTemplates(agentTemplates);
+      return { agentTemplates };
+    }),
+
+  addAgentFromTemplate: (templateId) => {
+    const tpl = get().agentTemplates.find((t) => t.id === templateId);
+    if (!tpl) return;
+    get().addNode('agent', undefined, {
+      name: tpl.name,
+      role: tpl.role,
+      systemPrompt: tpl.systemPrompt,
+      harness: tpl.harness,
+      model: tpl.model,
+      cwd: '',
+    });
+  },
+
+  removeAgentTemplate: (templateId) =>
+    set((s) => {
+      const agentTemplates = s.agentTemplates.filter((t) => t.id !== templateId);
+      persistTemplates(agentTemplates);
+      return { agentTemplates };
     }),
 }));

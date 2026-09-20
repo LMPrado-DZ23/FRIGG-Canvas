@@ -26,6 +26,7 @@ function WorkDirField({ nodeId }: { nodeId: string }): JSX.Element {
 function AgentEditor({ nodeId }: { nodeId: string }): JSX.Element {
   const node = useFrigg((s) => s.nodes.find((n) => n.id === nodeId));
   const patch = useFrigg((s) => s.patchNodeData);
+  const saveTpl = useFrigg((s) => s.saveAgentTemplate);
   if (!node) return <></>;
   const roleId = typeof node.data['role'] === 'string' ? (node.data['role'] as string) : 'developer';
   const role = roleById(roleId);
@@ -69,6 +70,8 @@ function AgentEditor({ nodeId }: { nodeId: string }): JSX.Element {
       <input className="fld" value={model} placeholder="ex.: sonnet, gpt-5.6…" onChange={(e) => patch(nodeId, { model: e.target.value })} />
 
       <WorkDirField nodeId={nodeId} />
+
+      <button className="btn" style={{ marginTop: 8 }} onClick={() => saveTpl(nodeId)}>💾 Salvar como meu agente</button>
     </div>
   );
 }

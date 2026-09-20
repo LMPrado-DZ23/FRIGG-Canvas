@@ -18,6 +18,9 @@ export function Sidebar(): JSX.Element {
   const select = useFrigg((s) => s.select);
   const selectedId = useFrigg((s) => s.selectedId);
   const setView = useFrigg((s) => s.setView);
+  const templates = useFrigg((s) => s.agentTemplates);
+  const addFromTpl = useFrigg((s) => s.addAgentFromTemplate);
+  const removeTpl = useFrigg((s) => s.removeAgentTemplate);
   const [filter, setFilter] = useState('');
   const [collapsed, setCollapsed] = useState(false);
 
@@ -52,6 +55,21 @@ export function Sidebar(): JSX.Element {
         ))}
         {list.length === 0 ? <div className="muted" style={{ padding: 8 }}>Nenhum nó. Use “Adicionar”.</div> : null}
       </div>
+      {templates.length > 0 ? (
+        <>
+          <div className="sidebar-section">MEUS AGENTES</div>
+          <div className="sidebar-list">
+            {templates.map((t) => (
+              <div key={t.id} style={{ display: 'flex', alignItems: 'center' }}>
+                <button className="sidebar-item" style={{ flex: 1 }} onClick={() => { addFromTpl(t.id); setView('2d'); }} title="Adicionar ao canvas">
+                  <span>🤖</span><span className="sidebar-item-label">{t.name}</span>
+                </button>
+                <button className="btn mini node-x" title="Remover da biblioteca" onClick={() => removeTpl(t.id)}>✕</button>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
