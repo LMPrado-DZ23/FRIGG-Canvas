@@ -15,11 +15,12 @@ export function NewTerminalModal({ open, onClose }: { open: boolean; onClose: ()
   const [name, setName] = useState('');
   const [command, setCommand] = useState('');
   const [cwd, setCwd] = useState('');
+  const [install, setInstall] = useState('');
   if (!open) return null;
 
   const create = (): void => {
-    addNode('terminal', undefined, { title: name || 'Terminal', command, cwd });
-    setName(''); setCommand(''); setCwd('');
+    addNode('terminal', undefined, { title: name || 'Terminal', command, cwd, install });
+    setName(''); setCommand(''); setCwd(''); setInstall('');
     onClose();
   };
   const pick = async (): Promise<void> => {
@@ -50,7 +51,9 @@ export function NewTerminalModal({ open, onClose }: { open: boolean; onClose: ()
         <label>Nome do terminal</label>
         <input className="fld" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do terminal" />
         <label>Comando</label>
-        <input className="fld" value={command} onChange={(e) => setCommand(e.target.value)} placeholder="ex.: claude, codex, ou vazio para shell" />
+        <input className="fld" value={command} onChange={(e) => setCommand(e.target.value)} placeholder="ex.: claude, codex, minha-cli --flag, ou vazio para shell" />
+        <label>Instalar (opcional) — para CLI que não está na lista</label>
+        <input className="fld" value={install} onChange={(e) => setInstall(e.target.value)} placeholder="ex.: npm i -g minha-cli  (se faltar, o FRIGG instala antes de rodar)" />
         <label>Diretório de trabalho</label>
         <div style={{ display: 'flex', gap: 4 }}>
           <input className="fld" style={{ flex: 1 }} value={cwd} onChange={(e) => setCwd(e.target.value)} placeholder="padrão (home)" />

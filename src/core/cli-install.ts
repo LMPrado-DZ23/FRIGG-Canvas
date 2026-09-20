@@ -43,6 +43,11 @@ export function installForCommand(command: string): string | null {
   return INSTALL_COMMANDS[c] ?? INSTALL_COMMANDS[binOf(c)] ?? null;
 }
 
+/** Monta o wrapper "instala-se-faltar; executa" para um bin/install/cmd dados. */
+function wrap(bin: string, install: string, cmd: string): string {
+  return `if (-not (Get-Command ${bin} -ErrorAction SilentlyContinue)) { Write-Host 'FRIGG: instalando ${bin}...' -ForegroundColor Cyan; ${install} }; ${cmd}`;
+}
+
 /**
  * Comando PowerShell que instala a CLI se faltar e então a executa.
  * Sem instalador conhecido, retorna o comando cru.
@@ -52,6 +57,18 @@ export function autoInstallCommand(command: string): string {
   if (!cmd) return '';
   const install = installForCommand(cmd);
   if (!install) return cmd;
-  const bin = binOf(cmd);
-  return `if (-not (Get-Command ${bin} -ErrorAction SilentlyContinue)) { Write-Host 'FRIGG: instalando ${bin}...' -ForegroundColor Cyan; ${install} }; ${cmd}`;
+  return wrap(binOf(cmd), install, cmd);
+}
+
+/**
+ * Igual ao autoInstallCommand, mas aceita um instalador CUSTOM informado pelo
+ * usuário (CLI que não está no catálogo). Precedência: install custom > catálogo
+ * > comando cru. Vazio/whitespace no custom é ignorado.
+ */
+export function autoInstallCommandWith(command: string, customInstall?: string): string {
+  const cmd = command.trim();
+  if (!cmd) return '';
+  const custom = (customInstall ?? '').trim();
+  if (custom) return wrap(binOf(cmd), custom, cmd);
+  return autoInstallCommand(cmd);
 }

@@ -94,4 +94,4 @@ export const CLI_CATEGORIES: readonly CliCategory[] = ['Code', 'Agent', 'Externa
 export const MANAGED_HARNESSES: readonly string[] = CLI_CATALOG.filter((c) => c.managed).map((c) => c.command);
 
 // Instalação automática: fonte única no core (usada por terminal e agentes).
-export { INSTALL_COMMANDS, autoInstallCommand } from '../core/cli-install.js';
+export { INSTALL_COMMANDS, autoInstallCommand, autoInstallCommandWith } from '../core/cli-install.js';

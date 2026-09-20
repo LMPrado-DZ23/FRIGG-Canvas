@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { bridge } from '../../bridge.js';
-import { autoInstallCommand } from '../../cli-catalog.js';
+import { autoInstallCommandWith } from '../../cli-catalog.js';
 
 /** Terminal PTY real (G1). Se o PTY não estiver disponível, mostra a limitação. */
-export function TerminalView({ id, command, cwd }: { id: string; command?: string; cwd?: string }): JSX.Element {
+export function TerminalView({ id, command, cwd, install }: { id: string; command?: string; cwd?: string; install?: string }): JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [warn, setWarn] = useState<string | null>(null);
 
@@ -42,7 +42,7 @@ export function TerminalView({ id, command, cwd }: { id: string; command?: strin
         setWarn(`Terminal indisponível: ${avail.detail}. Instale o VS Build Tools ou o binário pré-compilado.`);
         return;
       }
-      const res = await bridge.pty.start(id, term.cols, term.rows, autoInstallCommand(command ?? ''), cwd);
+      const res = await bridge.pty.start(id, term.cols, term.rows, autoInstallCommandWith(command ?? '', install), cwd);
       if (!res.ok && !disposed) setWarn(`Falha ao iniciar: ${res.detail}`);
     })();
 
@@ -65,7 +65,7 @@ export function TerminalView({ id, command, cwd }: { id: string; command?: strin
       bridge.pty.kill(id);
       term.dispose();
     };
-  }, [id, command, cwd]);
+  }, [id, command, cwd, install]);
 
   return (
     <div className="term-wrap">

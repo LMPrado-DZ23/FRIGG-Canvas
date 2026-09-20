@@ -23,6 +23,24 @@ function WorkDirField({ nodeId }: { nodeId: string }): JSX.Element {
   );
 }
 
+function TerminalEditor({ nodeId }: { nodeId: string }): JSX.Element {
+  const node = useFrigg((s) => s.nodes.find((n) => n.id === nodeId));
+  const patch = useFrigg((s) => s.patchNodeData);
+  if (!node) return <></>;
+  const command = typeof node.data['command'] === 'string' ? (node.data['command'] as string) : '';
+  const install = typeof node.data['install'] === 'string' ? (node.data['install'] as string) : '';
+  return (
+    <div className="agent-editor">
+      <label>Comando (CLI) — vazio = shell</label>
+      <input className="fld" value={command} placeholder="ex.: claude, codex, minha-cli --flag" onChange={(e) => patch(nodeId, { command: e.target.value })} />
+      <label>Instalar (opcional) — CLI fora da lista</label>
+      <input className="fld" value={install} placeholder="ex.: npm i -g minha-cli (roda se faltar)" onChange={(e) => patch(nodeId, { install: e.target.value })} />
+      <div className="muted" style={{ fontSize: 12 }}>Se preencher, o FRIGG instala antes de rodar quando o CLI não existir. Reabra o terminal para reexecutar.</div>
+      <WorkDirField nodeId={nodeId} />
+    </div>
+  );
+}
+
 function AgentEditor({ nodeId }: { nodeId: string }): JSX.Element {
   const node = useFrigg((s) => s.nodes.find((n) => n.id === nodeId));
   const patch = useFrigg((s) => s.patchNodeData);
@@ -97,12 +115,7 @@ export function SidePanel(): JSX.Element {
       <h3>{nodeTitle(node)}</h3>
       <div className="muted">tipo: {node.kind} · id: {node.id}</div>
       {node.kind === 'agent' ? <AgentEditor nodeId={node.id} /> : null}
-      {node.kind === 'terminal' ? (
-        <div className="agent-editor">
-          <p className="muted" style={{ margin: 0 }}>CLI: {String(node.data['command'] || 'shell')}</p>
-          <WorkDirField nodeId={node.id} />
-        </div>
-      ) : null}
+      {node.kind === 'terminal' ? <TerminalEditor nodeId={node.id} /> : null}
       {node.kind === 'browser' ? <p className="muted">URL: {String(node.data['url'] || '')}</p> : null}
       <button className="btn" style={{ marginTop: 10 }} onClick={() => selectedId && remove(selectedId)}>Remover nó</button>
     </div>
