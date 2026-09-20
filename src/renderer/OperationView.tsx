@@ -9,7 +9,8 @@ import { initialSessionState } from '../core/turn-state.js';
  * Funciona sem WebGL — é o fallback quando o 3D não está disponível.
  */
 export function OperationView(): JSX.Element {
-  const nodes = useFrigg((s) => s.nodes.filter((n) => n.kind === 'agent' || n.kind === 'terminal'));
+  const allNodes = useFrigg((s) => s.nodes);
+  const nodes = allNodes.filter((n) => n.kind === 'agent' || n.kind === 'terminal');
   const sessions = useFrigg((s) => s.sessions);
   const select = useFrigg((s) => s.select);
 

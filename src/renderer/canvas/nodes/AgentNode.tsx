@@ -5,6 +5,7 @@ import { bridge } from '../../bridge.js';
 import { deriveVisual, activityLabel } from '../../../core/session-model.js';
 import { initialSessionState } from '../../../core/turn-state.js';
 import { ROLES, roleById } from '../../../core/roles.js';
+import { DeleteBtn } from './DeleteBtn.js';
 
 export function AgentNode(props: NodeProps): JSX.Element {
   const nodeId = (props.data as { nodeId: string }).nodeId;
@@ -52,6 +53,7 @@ export function AgentNode(props: NodeProps): JSX.Element {
         >
           {ROLES.map((r) => <option key={r.id} value={r.id}>{r.emoji} {r.label}</option>)}
         </select>
+        <DeleteBtn id={nodeId} />
       </div>
       <div className="body">
         <div className="muted">

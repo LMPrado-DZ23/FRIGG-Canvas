@@ -2,6 +2,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { useFrigg } from '../../store.js';
 import { TerminalView } from './TerminalView.js';
 import { CLI_CATALOG, CLI_CATEGORIES } from '../../cli-catalog.js';
+import { DeleteBtn } from './DeleteBtn.js';
 
 export function TerminalNode(props: NodeProps): JSX.Element {
   const nodeId = (props.data as { nodeId: string }).nodeId;
@@ -28,6 +29,7 @@ export function TerminalNode(props: NodeProps): JSX.Element {
             </optgroup>
           ))}
         </select>
+        <DeleteBtn id={nodeId} />
       </div>
       <div className="body">
         <TerminalView id={nodeId} command={command} />

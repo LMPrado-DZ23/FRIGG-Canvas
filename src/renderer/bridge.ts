@@ -17,6 +17,11 @@ export const bridge: FriggApi = real ?? {
       return { status: 'unavailable', detail: 'sem bridge (dev no navegador)', checkedAt: Date.now() };
     },
   },
+  dialog: {
+    async pickFolder(): Promise<string | null> {
+      return null;
+    },
+  },
   workspace: {
     async load(): Promise<{ doc: WorkspaceDoc; recovered: boolean }> {
       try {

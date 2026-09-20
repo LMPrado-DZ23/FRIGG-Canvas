@@ -1,5 +1,6 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { useFrigg } from '../../store.js';
+import { DeleteBtn } from './DeleteBtn.js';
 
 export function NoteNode(props: NodeProps): JSX.Element {
   const nodeId = (props.data as { nodeId: string }).nodeId;
@@ -8,7 +9,7 @@ export function NoteNode(props: NodeProps): JSX.Element {
   const text = typeof node?.data['text'] === 'string' ? (node.data['text'] as string) : '';
   return (
     <div className="node note">
-      <div className="head"><span className="dot" /> Nota</div>
+      <div className="head"><span className="dot" /> Nota<DeleteBtn id={nodeId} /></div>
       <div className="body">
         <textarea
           value={text}

@@ -1,6 +1,7 @@
 import { createElement, useRef, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { useFrigg } from '../../store.js';
+import { DeleteBtn } from './DeleteBtn.js';
 
 /** Elemento <webview> do Electron (não tipado no JSX do React). */
 interface WebviewEl extends HTMLElement {
@@ -38,6 +39,7 @@ export function BrowserNode(props: NodeProps): JSX.Element {
     <div className="node browser">
       <div className="head">
         <span className="dot" /> 🌐 {String(node?.data['title'] ?? 'Navegador')}
+        <DeleteBtn id={nodeId} />
       </div>
       <div className="browser-bar nodrag">
         <button className="btn mini" onClick={() => ref.current?.goBack()} title="Voltar">←</button>

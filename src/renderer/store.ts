@@ -76,9 +76,9 @@ export const useFrigg = create<FriggState>((set, get) => ({
       kind === 'note'
         ? { text: 'Nova nota' }
         : kind === 'agent'
-          ? { title: 'Agente', role: 'developer', harness: 'claude' }
+          ? { title: 'Agente', role: 'developer', harness: 'claude', cwd: '' }
           : kind === 'terminal'
-            ? { title: 'Terminal' }
+            ? { title: 'Terminal', cwd: '' }
             : kind === 'browser'
               ? { title: 'Navegador', url: 'https://www.google.com/' }
               : kind === 'text'

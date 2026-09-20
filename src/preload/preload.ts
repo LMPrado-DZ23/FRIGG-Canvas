@@ -23,6 +23,7 @@ export interface AgentStartParams {
   readonly prompt: string;
   readonly harness?: string;
   readonly model?: string;
+  readonly cwd?: string;
 }
 
 export interface PtyDataEvent {
@@ -36,13 +37,14 @@ export interface PtyExitEvent {
 
 export interface FriggApi {
   omniroute: { health(): Promise<HealthResult> };
+  dialog: { pickFolder(): Promise<string | null> };
   workspace: {
     load(): Promise<{ doc: WorkspaceDoc; recovered: boolean }>;
     save(doc: WorkspaceDoc): Promise<{ ok: boolean }>;
   };
   pty: {
     available(): Promise<{ available: boolean; detail: string }>;
-    start(id: string, cols: number, rows: number, command?: string): Promise<{ ok: boolean; detail: string }>;
+    start(id: string, cols: number, rows: number, command?: string, cwd?: string): Promise<{ ok: boolean; detail: string }>;
     write(id: string, data: string): void;
     resize(id: string, cols: number, rows: number): void;
     kill(id: string): void;
@@ -64,14 +66,17 @@ const api: FriggApi = {
   omniroute: {
     health: () => ipcRenderer.invoke('omniroute:health') as Promise<HealthResult>,
   },
+  dialog: {
+    pickFolder: () => ipcRenderer.invoke('dialog:pickFolder') as Promise<string | null>,
+  },
   workspace: {
     load: () => ipcRenderer.invoke('workspace:load') as Promise<{ doc: WorkspaceDoc; recovered: boolean }>,
     save: (doc) => ipcRenderer.invoke('workspace:save', doc) as Promise<{ ok: boolean }>,
   },
   pty: {
     available: () => ipcRenderer.invoke('pty:available') as Promise<{ available: boolean; detail: string }>,
-    start: (id, cols, rows, command) =>
-      ipcRenderer.invoke('pty:start', id, cols, rows, command) as Promise<{ ok: boolean; detail: string }>,
+    start: (id, cols, rows, command, cwd) =>
+      ipcRenderer.invoke('pty:start', id, cols, rows, command, cwd) as Promise<{ ok: boolean; detail: string }>,
     write: (id, data) => ipcRenderer.send('pty:write', id, data),
     resize: (id, cols, rows) => ipcRenderer.send('pty:resize', id, cols, rows),
     kill: (id) => ipcRenderer.send('pty:kill', id),

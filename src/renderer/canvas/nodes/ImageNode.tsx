@@ -1,5 +1,6 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { useFrigg } from '../../store.js';
+import { DeleteBtn } from './DeleteBtn.js';
 
 /** Nó de Imagem (por URL). */
 export function ImageNode(props: NodeProps): JSX.Element {
@@ -10,7 +11,7 @@ export function ImageNode(props: NodeProps): JSX.Element {
 
   return (
     <div className="node image">
-      <div className="head"><span className="dot" /> 🖼️ Imagem</div>
+      <div className="head"><span className="dot" /> 🖼️ Imagem<DeleteBtn id={nodeId} /></div>
       <div className="body">
         {url ? (
           <img src={url} alt="" style={{ maxWidth: 320, maxHeight: 240, borderRadius: 6, display: 'block' }} />

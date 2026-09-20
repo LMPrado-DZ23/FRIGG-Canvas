@@ -5,7 +5,7 @@
  * OmniRoute ausente = INDISPONÍVEL (nunca simula saúde). PTY/persistência degradam
  * com honestidade.
  */
-import { app, BrowserWindow, ipcMain, Menu, type WebContents } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, dialog, type WebContents } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appendFileSync } from 'node:fs';
@@ -100,9 +100,17 @@ function registerIpc(): void {
     log(`pty:available -> ${ok} (${ptyLoadError() ?? 'ok'})`);
     return { available: ok, detail: ok ? 'ok' : (ptyLoadError() ?? 'binário não carregado') };
   });
-  ipcMain.handle('pty:start', async (_e, id: string, cols: number, rows: number, command?: string) => {
-    log(`pty:start id=${id} cmd=${command ?? 'shell'}`);
-    return pty.start(String(id), Number(cols), Number(rows), app.getPath('home'), command);
+  ipcMain.handle('pty:start', async (_e, id: string, cols: number, rows: number, command?: string, cwd?: string) => {
+    const dir = cwd && cwd.length > 0 ? cwd : app.getPath('home');
+    log(`pty:start id=${id} cmd=${command ?? 'shell'} cwd=${dir}`);
+    return pty.start(String(id), Number(cols), Number(rows), dir, command);
+  });
+  ipcMain.handle('dialog:pickFolder', async () => {
+    const win = mainWindow;
+    const res = win
+      ? await dialog.showOpenDialog(win, { properties: ['openDirectory'] })
+      : await dialog.showOpenDialog({ properties: ['openDirectory'] });
+    return res.canceled || res.filePaths.length === 0 ? null : res.filePaths[0];
   });
   ipcMain.on('pty:write', (_e, id: string, data: string) => pty.write(String(id), String(data)));
   ipcMain.on('pty:resize', (_e, id: string, cols: number, rows: number) =>
@@ -111,10 +119,10 @@ function registerIpc(): void {
   ipcMain.on('pty:kill', (_e, id: string) => pty.kill(String(id)));
 
   // Agente gerenciado (harness real). Só Claude por ora; Codex é o próximo.
-  ipcMain.handle('agent:start', async (_e, id: string, params: { prompt: string; harness?: string; model?: string }) => {
+  ipcMain.handle('agent:start', async (_e, id: string, params: { prompt: string; harness?: string; model?: string; cwd?: string }) => {
     if (agents.has(id)) return { ok: false, detail: 'sessão já ativa' };
     const harness = params.harness ?? 'claude';
-    const cwd = app.getPath('home');
+    const cwd = params.cwd && params.cwd.length > 0 ? params.cwd : app.getPath('home');
     const cb = {
       onEvent: (event: import('../core/turn-state.js').SessionEvent) => send('agent:event', { id, event }),
       onCost: (usd: number) => send('agent:cost', { id, usd }),

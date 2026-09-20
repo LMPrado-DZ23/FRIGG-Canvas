@@ -25,6 +25,7 @@ export function Canvas2D(): JSX.Element {
   const moveNode = useFrigg((s) => s.moveNode);
   const select = useFrigg((s) => s.select);
   const addEdge = useFrigg((s) => s.addEdge);
+  const removeNode = useFrigg((s) => s.removeNode);
 
   const rfNodes = useMemo<Node[]>(
     () =>
@@ -44,6 +45,7 @@ export function Canvas2D(): JSX.Element {
 
   const onNodeDragStop = (_: unknown, node: Node): void => moveNode(node.id, node.position.x, node.position.y);
   const onNodeClick: NodeMouseHandler = (_, node) => select(node.id);
+  const onNodesDelete = (deleted: Node[]): void => { for (const n of deleted) removeNode(n.id); };
   const onConnect = (c: Connection): void => {
     if (c.source && c.target) addEdge(c.source, c.target);
   };
@@ -55,8 +57,10 @@ export function Canvas2D(): JSX.Element {
       nodeTypes={nodeTypes}
       onNodeDragStop={onNodeDragStop}
       onNodeClick={onNodeClick}
+      onNodesDelete={onNodesDelete}
       onConnect={onConnect}
       onPaneClick={() => select(null)}
+      deleteKeyCode={['Delete']}
       fitView
       proOptions={{ hideAttribution: true }}
     >
