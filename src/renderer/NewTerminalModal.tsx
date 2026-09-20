@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useFrigg } from './store.js';
 import { bridge } from './bridge.js';
 
@@ -16,6 +16,12 @@ export function NewTerminalModal({ open, onClose }: { open: boolean; onClose: ()
   const [command, setCommand] = useState('');
   const [cwd, setCwd] = useState('');
   const [install, setInstall] = useState('');
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event: KeyboardEvent): void => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, onClose]);
   if (!open) return null;
 
   const create = (): void => {
@@ -30,10 +36,10 @@ export function NewTerminalModal({ open, onClose }: { open: boolean; onClose: ()
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="new-terminal-title" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <button className="btn" onClick={onClose}>Cancelar</button>
-          <b>Novo terminal</b>
+          <b id="new-terminal-title">Novo terminal</b>
           <button className="btn active" onClick={create}>Criar</button>
         </div>
         <div className="modal-section">INÍCIO RÁPIDO</div>

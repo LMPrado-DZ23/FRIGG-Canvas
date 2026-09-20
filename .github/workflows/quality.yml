@@ -1,0 +1,47 @@
+name: Quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
+
+  windows-portable-smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run package:portable
+      - name: Smoke test FRIGG.exe
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath "release/FRIGG-win/FRIGG.exe" -PassThru
+          Start-Sleep -Seconds 8
+          if ($process.HasExited) { throw "FRIGG.exe encerrou durante o smoke test (code=$($process.ExitCode))" }
+          Stop-Process -Id $process.Id -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FRIGG-windows-portable
+          path: release/FRIGG-win
+          if-no-files-found: error

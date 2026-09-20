@@ -1,15 +1,19 @@
 // Bundla o processo main e o preload do Electron para CJS com esbuild.
 // Nativos e electron ficam como external (resolvidos em runtime).
 import { build } from 'esbuild';
+import { rmSync } from 'node:fs';
 
 const external = ['electron', '@lydell/node-pty', '@homebridge/node-pty-prebuilt-multiarch', 'node-pty', 'better-sqlite3'];
+
+rmSync('dist/main', { recursive: true, force: true });
+rmSync('dist/preload', { recursive: true, force: true });
 
 const common = {
   bundle: true,
   platform: 'node',
   format: 'cjs',
   target: 'node20',
-  sourcemap: true,
+  sourcemap: false,
   external,
   logLevel: 'info',
   // No bundle CJS, import.meta.url fica undefined. Injeta um valor válido a

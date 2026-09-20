@@ -5,32 +5,11 @@
  * OmniRoute ausente = INDISPONÍVEL (nunca simula saúde). PTY/persistência degradam
  * com honestidade.
  */
-import { app, BrowserWindow, ipcMain, Menu, dialog, shell, type WebContents } from 'electron';
-import { fileURLToPath } from 'node:url';
+import { app, BrowserWindow, ipcMain, Menu, dialog, shell, session, type WebContents, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, existsSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { spawn as cpSpawn } from 'node:child_process';
-import { INSTALL_COMMANDS } from '../core/cli-install.js';
-
-/** Instala a CLI se faltar (agentes). Resolve mesmo em falha; teto de 3min. */
-function ensureCli(bin: string): Promise<void> {
-  return new Promise((resolve) => {
-    const install = INSTALL_COMMANDS[bin];
-    if (!install) return resolve();
-    const ps = `if (-not (Get-Command ${bin} -ErrorAction SilentlyContinue)) { Write-Host 'FRIGG: instalando ${bin}...'; ${install} }`;
-    try {
-      const child = cpSpawn('powershell.exe', ['-NoProfile', '-Command', ps], { windowsHide: true });
-      let done = false;
-      const finish = (): void => { if (!done) { done = true; resolve(); } };
-      child.on('close', finish);
-      child.on('error', finish);
-      setTimeout(finish, 180000);
-    } catch {
-      resolve();
-    }
-  });
-}
 
 const LOG = join(tmpdir(), 'frigg-main.log');
 function log(msg: string): void {
@@ -43,16 +22,19 @@ function log(msg: string): void {
 process.on('uncaughtException', (e) => log(`uncaughtException: ${e instanceof Error ? e.stack ?? e.message : String(e)}`));
 process.on('unhandledRejection', (e) => log(`unhandledRejection: ${String(e)}`));
 import { OmniRouteClient } from '../core/omniroute-client.js';
-import { parseLibrary, type WorkspaceLibrary } from '../core/workspace.js';
+import { parseLibraryForSave, type WorkspaceLibrary } from '../core/workspace.js';
 import { JsonFileStore } from './storage.js';
 import { PtyHost, isPtyAvailable, ptyLoadError, ensurePtyLoaded } from './pty-host.js';
 import { startClaudeSession } from './adapters/claude-adapter.js';
 import { startCodexSession } from './adapters/codex-adapter.js';
 import type { ManagedSession } from './adapters/types.js';
+import { isSafeBrowserUrl, isTrustedRendererUrl, isValidTerminalSize } from '../core/security.js';
+import { isCliAvailable } from './cli-availability.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OMNIROUTE_BASE_URL = process.env['FRIGG_OMNIROUTE_URL'] ?? 'http://localhost:20128';
 const DEV_URL = process.env['FRIGG_DEV_URL'];
+const PACKAGED_RENDERER_URL = pathToFileURL(join(__dirname, '../renderer/index.html')).href;
 
 const omni = new OmniRouteClient({
   baseUrl: OMNIROUTE_BASE_URL,
@@ -72,16 +54,51 @@ function send(channel: string, payload: unknown): void {
   if (wc && !wc.isDestroyed()) wc.send(channel, payload);
 }
 
+function assertTrustedIpc(event: IpcMainEvent | IpcMainInvokeEvent): void {
+  const source = event.senderFrame?.url ?? event.sender.getURL();
+  if (!isTrustedRendererUrl(source, DEV_URL, PACKAGED_RENDERER_URL)) {
+    log(`ipc bloqueado source=${source}`);
+    throw new Error('origem IPC não autorizada');
+  }
+}
+
+function configureWebSecurity(): void {
+  session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
+  session.defaultSession.setPermissionCheckHandler(() => false);
+  app.on('web-contents-created', (_event, contents) => {
+    contents.session.setPermissionRequestHandler((_requestingContents, _permission, callback) => callback(false));
+    contents.session.setPermissionCheckHandler(() => false);
+    contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    contents.on('will-attach-webview', (event, webPreferences, params) => {
+      if (typeof params.src !== 'string' || !isSafeBrowserUrl(params.src)) {
+        event.preventDefault();
+        return;
+      }
+      delete webPreferences.preload;
+      webPreferences.nodeIntegration = false;
+      webPreferences.contextIsolation = true;
+      webPreferences.sandbox = true;
+    });
+    if (contents.getType() === 'webview') {
+      contents.on('will-navigate', (event, url) => {
+        if (!isSafeBrowserUrl(url)) event.preventDefault();
+      });
+    }
+  });
+}
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1400,
     height: 900,
+    minWidth: 1024,
+    minHeight: 700,
     backgroundColor: '#0b1220',
     webPreferences: {
       preload: join(__dirname, '../preload/preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false, // preload bundlado precisa de require('electron'); segurança mantida por contextIsolation
+      sandbox: true,
       webviewTag: true, // habilita o nó Navegador (<webview>)
     },
   });
@@ -105,81 +122,119 @@ function createWindow(): void {
 }
 
 function registerIpc(): void {
-  ipcMain.handle('omniroute:health', async () => {
+  ipcMain.handle('omniroute:health', async (event) => {
+    assertTrustedIpc(event);
     log('ipc omniroute:health (bridge OK)');
     return omni.probeHealth();
   });
-  ipcMain.handle('workspace:load', async () => store.loadOrEmpty());
-  ipcMain.handle('workspace:save', async (_e, library: unknown) => {
-    const valid: WorkspaceLibrary = parseLibrary(library);
+  ipcMain.handle('workspace:load', async (event) => {
+    assertTrustedIpc(event);
+    return store.loadOrEmpty();
+  });
+  ipcMain.handle('workspace:save', async (event, library: unknown) => {
+    assertTrustedIpc(event);
+    const valid: WorkspaceLibrary = parseLibraryForSave(library);
     store.save(valid);
     return { ok: true };
   });
-  ipcMain.handle('pty:available', async () => {
+  ipcMain.handle('pty:available', async (event) => {
+    assertTrustedIpc(event);
     await ensurePtyLoaded();
     const ok = isPtyAvailable();
     log(`pty:available -> ${ok} (${ptyLoadError() ?? 'ok'})`);
     return { available: ok, detail: ok ? 'ok' : (ptyLoadError() ?? 'binário não carregado') };
   });
-  ipcMain.handle('pty:start', async (_e, id: string, cols: number, rows: number, command?: string, cwd?: string) => {
+  ipcMain.handle('pty:start', async (event, id: string, cols: number, rows: number, command?: string, cwd?: string) => {
+    assertTrustedIpc(event);
+    if (typeof id !== 'string' || id.length === 0 || id.length > 128) return { ok: false, detail: 'id inválido' };
+    if (command && command.length > 4_096) return { ok: false, detail: 'comando excede o limite' };
+    if (!isValidTerminalSize(cols, rows)) return { ok: false, detail: 'dimensões do terminal inválidas' };
     const dir = cwd && cwd.length > 0 ? cwd : app.getPath('home');
+    if (!existsSync(dir) || !statSync(dir).isDirectory()) return { ok: false, detail: 'diretório de trabalho inválido' };
     log(`pty:start id=${id} cmd=${command ?? 'shell'} cwd=${dir}`);
     return pty.start(String(id), Number(cols), Number(rows), dir, command);
   });
-  ipcMain.handle('dialog:pickFolder', async () => {
+  ipcMain.handle('dialog:pickFolder', async (event) => {
+    assertTrustedIpc(event);
     const win = mainWindow;
     const res = win
       ? await dialog.showOpenDialog(win, { properties: ['openDirectory'] })
       : await dialog.showOpenDialog({ properties: ['openDirectory'] });
     return res.canceled || res.filePaths.length === 0 ? null : res.filePaths[0];
   });
-  ipcMain.handle('dialog:pickFile', async () => {
+  ipcMain.handle('dialog:pickFile', async (event) => {
+    assertTrustedIpc(event);
     const win = mainWindow;
     const res = win
       ? await dialog.showOpenDialog(win, { properties: ['openFile'] })
       : await dialog.showOpenDialog({ properties: ['openFile'] });
     return res.canceled || res.filePaths.length === 0 ? null : res.filePaths[0];
   });
-  ipcMain.handle('file:open', async (_e, p: string) => {
-    if (typeof p === 'string' && p.length > 0) await shell.openPath(p);
-    return { ok: true };
+  ipcMain.handle('file:open', async (event, p: string) => {
+    assertTrustedIpc(event);
+    if (typeof p !== 'string' || p.length === 0 || p.length > 32_768 || !existsSync(p))
+      return { ok: false, detail: 'arquivo inexistente ou caminho inválido' };
+    const detail = await shell.openPath(p);
+    return detail ? { ok: false, detail } : { ok: true };
   });
-  ipcMain.on('pty:write', (_e, id: string, data: string) => pty.write(String(id), String(data)));
-  ipcMain.on('pty:resize', (_e, id: string, cols: number, rows: number) =>
-    pty.resize(String(id), Number(cols), Number(rows)),
-  );
-  ipcMain.on('pty:kill', (_e, id: string) => pty.kill(String(id)));
+  ipcMain.on('pty:write', (event, id: string, data: string) => {
+    assertTrustedIpc(event);
+    if (typeof data === 'string' && data.length <= 64_000) pty.write(String(id), data);
+  });
+  ipcMain.on('pty:resize', (event, id: string, cols: number, rows: number) => {
+    assertTrustedIpc(event);
+    if (isValidTerminalSize(cols, rows)) pty.resize(String(id), cols, rows);
+  });
+  ipcMain.on('pty:kill', (event, id: string) => {
+    assertTrustedIpc(event);
+    pty.kill(String(id));
+  });
 
-  // Agente gerenciado (harness real). Só Claude por ora; Codex é o próximo.
-  ipcMain.handle('agent:start', async (_e, id: string, params: { prompt: string; harness?: string; model?: string; cwd?: string }) => {
+  // Agentes gerenciados (harness real): Claude Code e Codex.
+  ipcMain.handle('agent:start', async (event, id: string, params: { prompt: string; harness?: string; model?: string; cwd?: string }) => {
+    assertTrustedIpc(event);
+    if (typeof id !== 'string' || id.length === 0 || id.length > 128) return { ok: false, detail: 'id inválido' };
+    if (!params || typeof params.prompt !== 'string' || params.prompt.length === 0 || params.prompt.length > 100_000)
+      return { ok: false, detail: 'prompt inválido' };
     if (agents.has(id)) return { ok: false, detail: 'sessão já ativa' };
     const harness = params.harness ?? 'claude';
+    if (harness !== 'claude' && harness !== 'codex') return { ok: false, detail: `adaptador '${harness}' não implementado` };
+    if (!(await isCliAvailable(harness)))
+      return { ok: false, detail: `CLI '${harness}' não encontrada. Instale-a em um terminal antes de iniciar o agente.` };
     const cwd = params.cwd && params.cwd.length > 0 ? params.cwd : app.getPath('home');
+    if (!existsSync(cwd) || !statSync(cwd).isDirectory()) return { ok: false, detail: 'diretório de trabalho inválido' };
+    let endedBeforeRegistration = false;
     const cb = {
-      onEvent: (event: import('../core/turn-state.js').SessionEvent) => send('agent:event', { id, event }),
+      onEvent: (agentEvent: import('../core/turn-state.js').SessionEvent) => {
+        send('agent:event', { id, event: agentEvent });
+        if (['turn.completed', 'turn.failed', 'cancel.confirmed', 'process.exited'].includes(agentEvent.type)) {
+          if (agents.has(id)) agents.delete(id);
+          else endedBeforeRegistration = true;
+        }
+      },
       onCost: (usd: number) => send('agent:cost', { id, usd }),
       onOutput: (text: string) => send('agent:output', { id, text }),
     };
-    // Garante a CLI do harness instalada antes de rodar o agente.
-    log(`ensureCli ${harness}`);
-    await ensureCli(harness === 'codex' ? 'codex' : 'claude');
     let handle: ManagedSession;
     if (harness === 'claude') {
       handle = startClaudeSession({ cwd, prompt: params.prompt, ...(params.model ? { model: params.model } : {}), baseUrl: OMNIROUTE_BASE_URL }, cb);
-    } else if (harness === 'codex') {
-      handle = startCodexSession({ cwd, prompt: params.prompt, ...(params.model ? { model: params.model } : {}) }, cb);
     } else {
-      return { ok: false, detail: `adaptador '${harness}' não implementado` };
+      handle = startCodexSession({ cwd, prompt: params.prompt, ...(params.model ? { model: params.model } : {}) }, cb);
     }
-    agents.set(id, handle);
-    return { ok: true, detail: `iniciado (${harness})` };
+    if (!endedBeforeRegistration) agents.set(id, handle);
+    return endedBeforeRegistration
+      ? { ok: false, detail: `não foi possível iniciar (${harness})` }
+      : { ok: true, detail: `iniciado (${harness})` };
   });
-  ipcMain.handle('agent:cancel', async (_e, id: string) => {
+  ipcMain.handle('agent:cancel', async (event, id: string) => {
+    assertTrustedIpc(event);
     agents.get(id)?.cancel();
     agents.delete(id);
     return { ok: true };
   });
-  ipcMain.handle('agent:approve', async (_e, id: string, requestId: string, decision: 'approved' | 'denied') => {
+  ipcMain.handle('agent:approve', async (event, id: string, requestId: string, decision: 'approved' | 'denied') => {
+    assertTrustedIpc(event);
+    if (decision !== 'approved' && decision !== 'denied') return { ok: false };
     agents.get(id)?.approve?.(String(requestId), decision);
     return { ok: true };
   });
@@ -188,6 +243,7 @@ function registerIpc(): void {
 app.whenReady().then(() => {
   log('whenReady');
   Menu.setApplicationMenu(null); // remove o menu padrão em inglês (visual limpo, estilo Maestri)
+  configureWebSecurity();
   store = new JsonFileStore(join(app.getPath('userData'), 'workspace.json'));
   pty = new PtyHost({
     onData: (id, data) => send('pty:data', { id, data }),
