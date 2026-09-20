@@ -53,6 +53,10 @@ body {
 .dot.done { background: var(--accent-2); }
 .note textarea { width: 260px; height: 120px; background: #0d1526; color: var(--text); border: 1px solid var(--line); border-radius: 6px; resize: both; }
 .term { width: 460px; height: 260px; background: #05080f; border-radius: 6px; }
+.browser-bar { display: flex; gap: 4px; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.browser-bar .addr { flex: 1; background: #0d1526; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.btn.mini { padding: 3px 7px; }
+.node.browser { min-width: 560px; }
 .term-wrap .warn { color: var(--warn); padding: 8px; font-size: 12px; }
 .muted { color: var(--muted); }
 h3 { margin: 6px 0; }

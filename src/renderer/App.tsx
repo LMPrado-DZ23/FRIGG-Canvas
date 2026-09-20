@@ -72,7 +72,7 @@ export function App(): JSX.Element {
   const hp = health?.status ?? 'unknown';
   const healthClass = hp === 'reachable' ? 'ok' : hp === 'unavailable' ? 'down' : 'unknown';
 
-  const add = useCallback((k: 'terminal' | 'note' | 'agent') => () => addNode(k), [addNode]);
+  const add = useCallback((k: 'terminal' | 'note' | 'agent' | 'browser') => () => addNode(k), [addNode]);
 
   return (
     <div className="app">
@@ -80,6 +80,7 @@ export function App(): JSX.Element {
         <span className="brand">FRIGG</span>
         <button className="btn" onClick={add('terminal')}>+ Terminal</button>
         <button className="btn" onClick={add('agent')}>+ Agente</button>
+        <button className="btn" onClick={add('browser')}>+ Navegador</button>
         <button className="btn" onClick={add('note')}>+ Nota</button>
         <select
           className="btn"

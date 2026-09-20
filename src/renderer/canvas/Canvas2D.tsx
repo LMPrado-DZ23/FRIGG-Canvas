@@ -5,12 +5,14 @@ import { TerminalNode } from './nodes/TerminalNode.js';
 import { NoteNode } from './nodes/NoteNode.js';
 import { AgentNode } from './nodes/AgentNode.js';
 import { HealthNode } from './nodes/HealthNode.js';
+import { BrowserNode } from './nodes/BrowserNode.js';
 
 const nodeTypes: NodeTypes = {
   terminal: TerminalNode,
   note: NoteNode,
   agent: AgentNode,
   health: HealthNode,
+  browser: BrowserNode,
 };
 
 export function Canvas2D(): JSX.Element {

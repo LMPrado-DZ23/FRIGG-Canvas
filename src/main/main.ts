@@ -5,7 +5,7 @@
  * OmniRoute ausente = INDISPONÍVEL (nunca simula saúde). PTY/persistência degradam
  * com honestidade.
  */
-import { app, BrowserWindow, ipcMain, type WebContents } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, type WebContents } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appendFileSync } from 'node:fs';
@@ -60,7 +60,8 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: false, // preload bundlado precisa de require('electron'); segurança mantida por contextIsolation
+      webviewTag: true, // habilita o nó Navegador (<webview>)
     },
   });
   mainWindow = win;
@@ -83,7 +84,10 @@ function createWindow(): void {
 }
 
 function registerIpc(): void {
-  ipcMain.handle('omniroute:health', async () => omni.probeHealth());
+  ipcMain.handle('omniroute:health', async () => {
+    log('ipc omniroute:health (bridge OK)');
+    return omni.probeHealth();
+  });
   ipcMain.handle('workspace:load', async () => store.loadOrEmpty());
   ipcMain.handle('workspace:save', async (_e, doc: unknown) => {
     const valid: WorkspaceDoc = parseWorkspace(doc);
@@ -134,6 +138,7 @@ function registerIpc(): void {
 
 app.whenReady().then(() => {
   log('whenReady');
+  Menu.setApplicationMenu(null); // remove o menu padrão em inglês (visual limpo, estilo Maestri)
   store = new JsonFileStore(join(app.getPath('userData'), 'workspace.json'));
   pty = new PtyHost({
     onData: (id, data) => send('pty:data', { id, data }),
