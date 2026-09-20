@@ -19,9 +19,14 @@ export interface StartAgentParams {
   readonly baseUrl?: string;
 }
 
-export function startClaudeSession(params: StartAgentParams, cb: AgentCallbacks): ManagedSession {
-  const args = ['-p', params.prompt, '--output-format', 'stream-json', '--verbose', '--permission-mode', 'auto'];
+export function buildClaudeArgs(params: Pick<StartAgentParams, 'prompt' | 'model'>): string[] {
+  const args = ['-p', params.prompt, '--output-format', 'stream-json', '--verbose', '--permission-mode', 'default'];
   if (params.model) args.push('--model', params.model);
+  return args;
+}
+
+export function startClaudeSession(params: StartAgentParams, cb: AgentCallbacks): ManagedSession {
+  const args = buildClaudeArgs(params);
 
   const env = { ...process.env };
   // Rotear pelo OmniRoute (endpoint compatível). Só efetivo se a rota estiver ok.

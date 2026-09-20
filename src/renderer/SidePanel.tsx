@@ -83,6 +83,11 @@ function AgentEditor({ nodeId }: { nodeId: string }): JSX.Element {
         <option value="claude">Claude Code</option>
         <option value="codex">Codex</option>
       </select>
+      {harness === 'claude' ? (
+        <div className="muted" style={{ fontSize: 12 }}>
+          O Claude gerenciado usa permissões seguras padrão; ações que exigem confirmação podem ser recusadas no modo não interativo. Para controle interativo completo, use um nó Terminal.
+        </div>
+      ) : null}
 
       <label>Modelo (opcional)</label>
       <input className="fld" value={model} placeholder="ex.: sonnet, gpt-5.6…" onChange={(e) => patch(nodeId, { model: e.target.value })} />

@@ -10,7 +10,18 @@ export default defineConfig({
   build: {
     outDir: resolve(__dirname, 'dist/renderer'),
     emptyOutDir: true,
-    sourcemap: true,
+    sourcemap: false,
+    chunkSizeWarningLimit: 1_000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'zustand'],
+          'vendor-flow': ['@xyflow/react'],
+          'vendor-terminal': ['@xterm/xterm', '@xterm/addon-fit'],
+          'vendor-three': ['three', '@react-three/fiber', '@react-three/drei'],
+        },
+      },
+    },
   },
   server: { port: 5173, strictPort: true },
 });

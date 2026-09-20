@@ -37,12 +37,20 @@ export function App(): JSX.Element {
   const addTemplate = useFrigg((s) => s.addTemplate);
   const [wfMsg, setWfMsg] = useState<string | null>(null);
   const [showNewTerminal, setShowNewTerminal] = useState(false);
+  const [appError, setAppError] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [hydrated, setHydrated] = useState(false);
 
   // Bootstrap: carrega workspace, sonda saúde/PTY e escuta eventos de agente.
   useEffect(() => {
-    void bridge.workspace.load().then((r) => loadLibrary(r.library, r.recovered));
-    void bridge.pty.available().then(setPty);
-    const tick = (): void => void bridge.omniroute.health().then(setHealth);
+    void bridge.workspace.load()
+      .then((r) => {
+        loadLibrary(r.library, r.recovered);
+        setHydrated(true);
+      })
+      .catch((error: unknown) => setAppError(`Não foi possível carregar o workspace: ${String(error)}`));
+    void bridge.pty.available().then(setPty).catch(() => setPty({ available: false, detail: 'IPC indisponível' }));
+    const tick = (): void => void bridge.omniroute.health().then(setHealth).catch(() => undefined);
     tick();
     const t = setInterval(tick, 5000);
     const offEvent = bridge.agent.onEvent(({ id, event }) => {
@@ -71,9 +79,18 @@ export function App(): JSX.Element {
 
   // Autosave (debounce simples) quando os nós mudam.
   useEffect(() => {
-    const t = setTimeout(() => void bridge.workspace.save(toLibrary()), 600);
+    if (!hydrated) return undefined;
+    setSaveState('saving');
+    const t = setTimeout(() => {
+      void bridge.workspace.save(toLibrary())
+        .then(() => setSaveState('saved'))
+        .catch((error: unknown) => {
+          setSaveState('error');
+          setAppError(`Falha ao salvar: ${String(error)}`);
+        });
+    }, 600);
     return () => clearTimeout(t);
-  }, [nodes, edges, workspaces, activeWorkspaceId, toLibrary]);
+  }, [nodes, edges, workspaces, activeWorkspaceId, toLibrary, hydrated]);
 
   const hp = health?.status ?? 'unknown';
   const healthClass = hp === 'reachable' ? 'ok' : hp === 'unavailable' ? 'down' : 'unknown';
@@ -81,17 +98,17 @@ export function App(): JSX.Element {
 
   return (
     <div className="app">
-      <div className="topbar">
+      <header className="topbar">
         <span className="brand">FRIGG</span>
         <div className="toolbar">
-          <button className="btn tool" title="Terminal" onClick={() => addNode('terminal')}>⌨️</button>
-          <button className="btn tool" title="Agente" onClick={() => addNode('agent')}>🤖</button>
-          <button className="btn tool" title="Navegador" onClick={() => addNode('browser')}>🌐</button>
-          <button className="btn tool" title="Nota" onClick={() => addNode('note')}>📝</button>
-          <button className="btn tool" title="Texto" onClick={() => addNode('text')}>🔤</button>
-          <button className="btn tool" title="Imagem" onClick={() => addNode('image')}>🖼️</button>
-          <button className="btn tool" title="Arquivo" onClick={() => addNode('file')}>📄</button>
-          <button className="btn tool" title="Desenho" onClick={() => addNode('draw')}>✏️</button>
+          <button className="btn tool" aria-label="Adicionar terminal" title="Terminal" onClick={() => addNode('terminal')}>⌨️</button>
+          <button className="btn tool" aria-label="Adicionar agente" title="Agente" onClick={() => addNode('agent')}>🤖</button>
+          <button className="btn tool" aria-label="Adicionar navegador" title="Navegador" onClick={() => addNode('browser')}>🌐</button>
+          <button className="btn tool" aria-label="Adicionar nota" title="Nota" onClick={() => addNode('note')}>📝</button>
+          <button className="btn tool" aria-label="Adicionar texto" title="Texto" onClick={() => addNode('text')}>🔤</button>
+          <button className="btn tool" aria-label="Adicionar imagem" title="Imagem" onClick={() => addNode('image')}>🖼️</button>
+          <button className="btn tool" aria-label="Adicionar arquivo" title="Arquivo" onClick={() => addNode('file')}>📄</button>
+          <button className="btn tool" aria-label="Adicionar desenho" title="Desenho" onClick={() => addNode('draw')}>✏️</button>
         </div>
         <button className="btn" title="Novo terminal (assistente)" onClick={() => setShowNewTerminal(true)}>Novo terminal…</button>
         <select
@@ -118,11 +135,20 @@ export function App(): JSX.Element {
         </button>
         {wfMsg ? <span className="muted">{wfMsg}</span> : null}
         <div className="spacer" />
+        <span className={`save-state ${saveState}`} aria-live="polite">
+          {saveState === 'saving' ? 'Salvando…' : saveState === 'error' ? 'Não salvo' : 'Salvo'}
+        </span>
         <span className={`badge ${healthClass}`}>{healthLabel(hp)}</span>
         <button className={`btn ${view === '2d' ? 'active' : ''}`} onClick={() => setView('2d')}>Canvas 2D</button>
         <button className={`btn ${view === '3d' ? 'active' : ''}`} onClick={() => setView('3d')}>Escritório 3D</button>
         <button className={`btn ${view === 'op' ? 'active' : ''}`} onClick={() => setView('op')}>Operação</button>
-      </div>
+      </header>
+      {appError ? (
+        <div className="app-alert" role="alert">
+          <span>{appError}</span>
+          <button className="btn mini" onClick={() => setAppError(null)}>Fechar</button>
+        </div>
+      ) : null}
       <div className="main">
         <Sidebar />
         <div className="stage">

@@ -125,13 +125,61 @@ export function parseLibrary(v: unknown): WorkspaceLibrary {
   }
 }
 
+/** Validação estrita para gravação. Diferente da recuperação, nunca inventa dados. */
+export function parseLibraryForSave(v: unknown): WorkspaceLibrary {
+  if (!isObj(v) || v['version'] !== 2) throw new Error('biblioteca version 2 inválida');
+  if (!Array.isArray(v['workspaces']) || v['workspaces'].length === 0)
+    throw new Error('workspaces deve ser uma lista não vazia');
+  if (v['workspaces'].length > 100) throw new Error('limite de workspaces excedido');
+
+  const entries = v['workspaces'].map((raw, index): WorkspaceEntry => {
+    if (!isObj(raw)) throw new Error(`workspace[${index}] não é objeto`);
+    const id = raw['id'];
+    if (typeof id !== 'string' || id.length === 0 || id.length > 128)
+      throw new Error(`workspace[${index}].id inválido`);
+    const doc = parseWorkspaceForSave({ version: 1, name: raw['name'], nodes: raw['nodes'], edges: raw['edges'] });
+    return { id, name: doc.name, nodes: doc.nodes, edges: doc.edges };
+  });
+  const ids = new Set(entries.map((entry) => entry.id));
+  if (ids.size !== entries.length) throw new Error('ids de workspace duplicados');
+  const activeId = v['activeId'];
+  if (typeof activeId !== 'string' || !ids.has(activeId)) throw new Error('activeId inválido');
+  return { version: 2, activeId, workspaces: entries };
+}
+
+function parseWorkspaceForSave(v: unknown): WorkspaceDoc {
+  if (!isObj(v) || v['version'] !== 1) throw new Error('workspace version 1 inválido');
+  if (typeof v['name'] !== 'string' || v['name'].length === 0 || v['name'].length > 200)
+    throw new Error('nome do workspace inválido');
+  if (!Array.isArray(v['nodes']) || !Array.isArray(v['edges'])) throw new Error('nodes/edges inválidos');
+  if (v['nodes'].length > 2_000 || v['edges'].length > 5_000) throw new Error('limite do workspace excedido');
+
+  const nodes = v['nodes'].map((raw, index) => {
+    const node = parseNode(raw, index);
+    if (node.id.length > 128 || !isObj(raw) || !isObj(raw['data'])) throw new Error(`node[${index}].data inválido`);
+    let encoded: string;
+    try { encoded = JSON.stringify(raw['data']); } catch { throw new Error(`node[${index}].data não serializável`); }
+    if (encoded.length > 1_000_000) throw new Error(`node[${index}].data excede o limite`);
+    return node;
+  });
+  const ids = new Set(nodes.map((node) => node.id));
+  if (ids.size !== nodes.length) throw new Error('ids de nó duplicados');
+  const edges = v['edges'].map(parseEdge);
+  for (const edge of edges) {
+    if (edge.id.length === 0 || edge.id.length > 128 || !ids.has(edge.source) || !ids.has(edge.target))
+      throw new Error(`aresta ${edge.id || '(sem id)'} inválida`);
+  }
+  return { version: 1, name: v['name'], nodes, edges };
+}
+
 /** Valida ANTES de gravar/usar. Lança em documento inválido. */
 export function parseWorkspace(v: unknown): WorkspaceDoc {
   if (!isObj(v)) throw new Error('workspace não é objeto');
   if (v['version'] !== 1) throw new Error(`version não suportada: ${String(v['version'])}`);
-  const name = typeof v['name'] === 'string' ? v['name'] : 'Workspace';
+  const name = typeof v['name'] === 'string' ? v['name'].slice(0, 200) : 'Workspace';
   const rawNodes = Array.isArray(v['nodes']) ? v['nodes'] : [];
   const rawEdges = Array.isArray(v['edges']) ? v['edges'] : [];
+  if (rawNodes.length > 2_000 || rawEdges.length > 5_000) throw new Error('limite do workspace excedido');
   const nodes = rawNodes.map(parseNode);
   const ids = new Set(nodes.map((n) => n.id));
   if (ids.size !== nodes.length) throw new Error('ids de nó duplicados');

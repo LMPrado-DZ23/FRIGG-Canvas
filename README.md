@@ -22,11 +22,11 @@ App desktop de **canvas + orquestração de agentes de IA** sobre o **OmniRoute*
 
 | Componente | Estado | Evidência |
 |---|---|---|
-| Núcleo: turn-state, session-model, workspace, omniroute-client, claude-stream, roles, orchestrator | ✅ testado | 51 testes Vitest |
+| Núcleo: turn-state, session-model, workspace, segurança, omniroute-client, claude-stream, roles, orchestrator | ✅ testado | 62 testes Vitest |
 | Typecheck strict | ✅ exit 0 | `npm run typecheck` |
 | Canvas 2D + nós + arestas + escritório 3D + Operação | ✅ build OK | `npm run build:renderer` |
 | Orquestração (papéis + grafo + templates) | ✅ implementado; motor testado | idem + testes |
-| Adaptadores Claude (stream-json) e Codex (App Server) + aprovações | 🟡 implementado; execução ao vivo requer CLI logada | mapeamento testado |
+| Adaptadores Claude (stream-json) e Codex (App Server) | 🟡 execução ao vivo requer CLI logada; aprovações interativas estão disponíveis no Codex | parser/argumentos testados |
 | Terminais PTY (node-pty pré-compilado) | 🟡 código pronto; binário nativo depende do ambiente | degrada p/ "indisponível" |
 | `.exe` (electron-builder) | 🟡 config pronta; build/assinatura fora deste sandbox | `npm run dist:win` |
 
@@ -44,7 +44,7 @@ npm start                # abre a janela (baixa o Electron na 1ª vez)
 ```bash
 npm run package:portable   # gera release/FRIGG-win/FRIGG.exe (duplo clique)
 ```
-Já validado: o `FRIGG.exe` montado por esse script abre e roda.
+O workflow `Quality` monta o portátil em Windows, abre o `FRIGG.exe`, confirma que o processo permanece saudável e publica o diretório como artefato.
 
 **Instalador NSIS (`.exe` de setup):**
 ```bash
@@ -68,4 +68,4 @@ mostra "indisponível" (nunca finge saúde). CLIs externas roteiam exportando
   → unknown. **G2** nó gerenciado = sessão de harness via adaptador, não `/v1`.
 - **Orquestração** = grafo executável: aresta A→B só dispara B quando A concluiu; falha
   bloqueia downstream; ciclo é rejeitado.
-- **Segurança** contextIsolation/sandbox, sem nodeIntegration, sem webview privilegiada.
+- **Segurança** contextIsolation + sandbox, sem nodeIntegration; IPC aceita apenas o renderer confiável; webview sem Node/preload, pop-ups, permissões ou esquemas privilegiados.

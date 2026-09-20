@@ -2,6 +2,7 @@ import { createElement, useRef, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { useFrigg } from '../../store.js';
 import { DeleteBtn } from './DeleteBtn.js';
+import { isSafeBrowserUrl, normalizeBrowserInput } from '../../../core/security.js';
 
 /** Elemento <webview> do Electron (não tipado no JSX do React). */
 interface WebviewEl extends HTMLElement {
@@ -12,24 +13,17 @@ interface WebviewEl extends HTMLElement {
   loadURL(url: string): void;
 }
 
-function normalizeUrl(input: string): string {
-  const t = input.trim();
-  if (!t) return 'about:blank';
-  if (/^https?:\/\//i.test(t)) return t;
-  if (/^[\w-]+(\.[\w-]+)+/.test(t)) return `https://${t}`;
-  return `https://www.google.com/search?q=${encodeURIComponent(t)}`;
-}
-
 export function BrowserNode(props: NodeProps): JSX.Element {
   const nodeId = (props.data as { nodeId: string }).nodeId;
   const node = useFrigg((s) => s.nodes.find((n) => n.id === nodeId));
   const patch = useFrigg((s) => s.patchNodeData);
-  const url = typeof node?.data['url'] === 'string' ? (node.data['url'] as string) : 'https://www.google.com/';
+  const storedUrl = typeof node?.data['url'] === 'string' ? (node.data['url'] as string) : '';
+  const url = isSafeBrowserUrl(storedUrl) ? storedUrl : 'https://www.google.com/';
   const [addr, setAddr] = useState(url);
   const ref = useRef<WebviewEl | null>(null);
 
   const go = (raw: string): void => {
-    const u = normalizeUrl(raw);
+    const u = normalizeBrowserInput(raw);
     setAddr(u);
     patch(nodeId, { url: u });
     ref.current?.loadURL(u);
@@ -60,7 +54,6 @@ export function BrowserNode(props: NodeProps): JSX.Element {
           className: 'nodrag nowheel',
           style: { width: 560, height: 380, display: 'inline-flex', background: '#fff' },
           partition: 'persist:frigg-browser',
-          allowpopups: 'true',
         })}
       </div>
       <Handle type="target" position={Position.Left} />

@@ -4,7 +4,7 @@
  * (v1, doc único) para o novo (v2, biblioteca) via parseLibrary.
  */
 import { readFileSync, writeFileSync, existsSync, renameSync } from 'node:fs';
-import { parseLibrary, emptyLibrary, type WorkspaceLibrary } from '../core/workspace.js';
+import { parseLibrary, parseLibraryForSave, emptyLibrary, type WorkspaceLibrary } from '../core/workspace.js';
 
 export interface LoadResult {
   readonly library: WorkspaceLibrary;
@@ -32,9 +32,11 @@ export class JsonFileStore {
   }
 
   save(library: WorkspaceLibrary): void {
-    const valid = parseLibrary(library); // normaliza/valida antes de gravar
+    const valid = parseLibraryForSave(library);
     const tmp = `${this.path}.tmp`;
-    writeFileSync(tmp, JSON.stringify(valid, null, 2), 'utf8');
+    const serialized = JSON.stringify(valid, null, 2);
+    if (serialized.length > 20_000_000) throw new Error('workspace excede o limite de 20 MB');
+    writeFileSync(tmp, serialized, { encoding: 'utf8', mode: 0o600 });
     renameSync(tmp, this.path);
   }
 }

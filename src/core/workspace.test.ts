@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseWorkspace, emptyWorkspace } from './workspace.js';
+import { parseWorkspace, emptyWorkspace, parseLibraryForSave } from './workspace.js';
 
 describe('parseWorkspace', () => {
   it('aceita workspace vazio válido', () => {
@@ -42,5 +42,31 @@ describe('parseWorkspace', () => {
       edges: [],
     });
     expect(doc.nodes[0]!.data).toEqual({});
+  });
+});
+
+describe('parseLibraryForSave', () => {
+  it('rejeita biblioteca inválida em vez de substituir dados por um workspace vazio', () => {
+    expect(() => parseLibraryForSave({ version: 2, activeId: 'missing', workspaces: 'invalid' }))
+      .toThrow(/workspaces/i);
+  });
+
+  it('rejeita ids de workspace duplicados', () => {
+    const workspace = { id: 'same', name: 'A', nodes: [], edges: [] };
+    expect(() => parseLibraryForSave({
+      version: 2,
+      activeId: 'same',
+      workspaces: [workspace, { ...workspace, name: 'B' }],
+    })).toThrow(/duplicad/i);
+  });
+
+  it('rejeita estrutura parcial e aresta pendente sem apagar silenciosamente', () => {
+    expect(() => parseLibraryForSave({ version: 2, activeId: 'a', workspaces: [{ id: 'a', name: 'A' }] }))
+      .toThrow(/nodes\/edges/i);
+    expect(() => parseLibraryForSave({
+      version: 2,
+      activeId: 'a',
+      workspaces: [{ id: 'a', name: 'A', nodes: [], edges: [{ id: 'e', source: 'x', target: 'y' }] }],
+    })).toThrow(/aresta/i);
   });
 });

@@ -34,18 +34,18 @@
     "@homebridge/node-pty-prebuilt-multiarch": "^0.12.0"
   },
   "devDependencies": {
-    "@electron/rebuild": "^3.7.1",
+    "@electron/rebuild": "^4.2.0",
     "@types/node": "^22.10.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/three": "^0.169.0",
     "@vitejs/plugin-react": "^4.3.4",
-    "electron": "^33.2.1",
-    "electron-builder": "^25.1.8",
-    "esbuild": "^0.24.0",
+    "electron": "^44.4.3",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
     "typescript": "^5.6.3",
     "vite": "^6.0.3",
-    "vitest": "^2.1.8"
+    "vitest": "^5.0.1"
   },
   "build": {
     "appId": "app.frigg.canvas",
