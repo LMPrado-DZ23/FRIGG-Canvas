@@ -21,18 +21,23 @@ type PtyModule = {
 
 let mod: PtyModule | null = null;
 let loadError: string | null = null;
-let attempted = false;
+let loadPromise: Promise<void> | null = null;
 
-export async function ensurePtyLoaded(): Promise<void> {
-  if (attempted) return;
-  attempted = true;
-  try {
-    // @lydell/node-pty usa prebuilds N-API (ABI-estável Node/Electron, sem compilador).
-    mod = (await import('@lydell/node-pty')) as unknown as PtyModule;
-  } catch (err) {
-    loadError = err instanceof Error ? err.message : String(err);
-    mod = null;
+export function ensurePtyLoaded(): Promise<void> {
+  // Carregamento compartilhado: chamadas concorrentes aguardam a MESMA promessa
+  // (evita corrida onde a 1ª chamada reporta indisponível antes do import terminar).
+  if (!loadPromise) {
+    loadPromise = (async () => {
+      try {
+        // @lydell/node-pty usa prebuilds N-API (ABI-estável Node/Electron, sem compilador).
+        mod = (await import('@lydell/node-pty')) as unknown as PtyModule;
+      } catch (err) {
+        loadError = err instanceof Error ? err.message : String(err);
+        mod = null;
+      }
+    })();
   }
+  return loadPromise;
 }
 
 export function isPtyAvailable(): boolean {
