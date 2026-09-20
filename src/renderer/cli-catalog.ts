@@ -8,7 +8,7 @@
  * Comandos são o melhor palpite de invocação; o ideal é sincronizar
  * dinamicamente com o OmniRoute (próximo passo). Ajuste livre por linha.
  */
-export type CliCategory = 'Code' | 'Agent' | 'Externas (compatíveis)' | 'Shell';
+export type CliCategory = 'Code' | 'Agent' | 'Externas (compatíveis)' | 'Dev / Cloud' | 'Shell';
 
 /** Endpoint local padrão do OmniRoute (compat. OpenAI). */
 export const OMNIROUTE_LOCAL_ENDPOINT = 'http://localhost:20128/v1';
@@ -77,9 +77,21 @@ export const CLI_CATALOG: readonly CliEntry[] = [
   { label: 'mods', command: 'mods', category: 'Externas (compatíveis)' },
   { label: 'llm', command: 'llm', category: 'Externas (compatíveis)' },
   { label: 'fabric', command: 'fabric', category: 'Externas (compatíveis)' },
+
+  // === Dev / Cloud (para um projeto sair pronto: git, deploy, backend) ===
+  { label: 'GitHub CLI', command: 'gh', category: 'Dev / Cloud' },
+  { label: 'Supabase CLI', command: 'supabase', category: 'Dev / Cloud' },
+  { label: 'Vercel CLI', command: 'vercel', category: 'Dev / Cloud' },
+  { label: 'Cloudflare Wrangler', command: 'wrangler', category: 'Dev / Cloud' },
+  { label: 'Netlify CLI', command: 'netlify', category: 'Dev / Cloud' },
+  { label: 'SSH (servidor)', command: 'ssh', category: 'Dev / Cloud' },
+  { label: 'Docker', command: 'docker', category: 'Dev / Cloud' },
 ];
 
-export const CLI_CATEGORIES: readonly CliCategory[] = ['Code', 'Agent', 'Externas (compatíveis)'];
+export const CLI_CATEGORIES: readonly CliCategory[] = ['Code', 'Agent', 'Externas (compatíveis)', 'Dev / Cloud'];
 
 /** CLIs que podem virar nó Agente gerenciado (adaptador estruturado existente). */
 export const MANAGED_HARNESSES: readonly string[] = CLI_CATALOG.filter((c) => c.managed).map((c) => c.command);
+
+// Instalação automática: fonte única no core (usada por terminal e agentes).
+export { INSTALL_COMMANDS, autoInstallCommand } from '../core/cli-install.js';

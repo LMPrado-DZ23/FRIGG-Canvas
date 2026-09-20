@@ -10,6 +10,27 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { appendFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { spawn as cpSpawn } from 'node:child_process';
+import { INSTALL_COMMANDS } from '../core/cli-install.js';
+
+/** Instala a CLI se faltar (agentes). Resolve mesmo em falha; teto de 3min. */
+function ensureCli(bin: string): Promise<void> {
+  return new Promise((resolve) => {
+    const install = INSTALL_COMMANDS[bin];
+    if (!install) return resolve();
+    const ps = `if (-not (Get-Command ${bin} -ErrorAction SilentlyContinue)) { Write-Host 'FRIGG: instalando ${bin}...'; ${install} }`;
+    try {
+      const child = cpSpawn('powershell.exe', ['-NoProfile', '-Command', ps], { windowsHide: true });
+      let done = false;
+      const finish = (): void => { if (!done) { done = true; resolve(); } };
+      child.on('close', finish);
+      child.on('error', finish);
+      setTimeout(finish, 180000);
+    } catch {
+      resolve();
+    }
+  });
+}
 
 const LOG = join(tmpdir(), 'frigg-main.log');
 function log(msg: string): void {
@@ -139,6 +160,9 @@ function registerIpc(): void {
       onCost: (usd: number) => send('agent:cost', { id, usd }),
       onOutput: (text: string) => send('agent:output', { id, text }),
     };
+    // Garante a CLI do harness instalada antes de rodar o agente.
+    log(`ensureCli ${harness}`);
+    await ensureCli(harness === 'codex' ? 'codex' : 'claude');
     let handle: ManagedSession;
     if (harness === 'claude') {
       handle = startClaudeSession({ cwd, prompt: params.prompt, ...(params.model ? { model: params.model } : {}), baseUrl: OMNIROUTE_BASE_URL }, cb);

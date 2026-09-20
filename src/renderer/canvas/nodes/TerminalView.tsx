@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { bridge } from '../../bridge.js';
+import { autoInstallCommand } from '../../cli-catalog.js';
 
 /** Terminal PTY real (G1). Se o PTY não estiver disponível, mostra a limitação. */
 export function TerminalView({ id, command, cwd }: { id: string; command?: string; cwd?: string }): JSX.Element {
@@ -41,7 +42,7 @@ export function TerminalView({ id, command, cwd }: { id: string; command?: strin
         setWarn(`Terminal indisponível: ${avail.detail}. Instale o VS Build Tools ou o binário pré-compilado.`);
         return;
       }
-      const res = await bridge.pty.start(id, term.cols, term.rows, command, cwd);
+      const res = await bridge.pty.start(id, term.cols, term.rows, autoInstallCommand(command ?? ''), cwd);
       if (!res.ok && !disposed) setWarn(`Falha ao iniciar: ${res.detail}`);
     })();
 

@@ -57,7 +57,7 @@ export function BrowserNode(props: NodeProps): JSX.Element {
         {createElement('webview', {
           ref: (el: WebviewEl | null): void => { ref.current = el; },
           src: url,
-          class: 'nodrag nowheel',
+          className: 'nodrag nowheel',
           style: { width: 560, height: 380, display: 'inline-flex', background: '#fff' },
           partition: 'persist:frigg-browser',
           allowpopups: 'true',
