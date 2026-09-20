@@ -15,7 +15,8 @@
     "dev:renderer": "vite",
     "start": "electron .",
     "rebuild": "electron-rebuild -f -w @homebridge/node-pty-prebuilt-multiarch",
-    "dist:win": "npm run build && electron-builder --win nsis"
+    "dist:win": "npm run build && electron-builder --win nsis",
+    "package:portable": "npm run build && node scripts/package-portable.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.114.0",

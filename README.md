@@ -38,10 +38,23 @@ npm run build            # main + renderer
 npm start                # abre a janela (baixa o Electron na 1ª vez)
 ```
 
-## Gerar o instalador .exe
+## Gerar o executável
+
+**Portátil (sem instalador, sem admin) — recomendado:**
 ```bash
-npm run dist:win         # gera release/ (NSIS)
+npm run package:portable   # gera release/FRIGG-win/FRIGG.exe (duplo clique)
 ```
+Já validado: o `FRIGG.exe` montado por esse script abre e roda.
+
+**Instalador NSIS (`.exe` de setup):**
+```bash
+npm run dist:win           # gera release/ (NSIS)
+```
+> Este exige um privilégio do Windows: o electron-builder extrai o `winCodeSign`
+> que contém symlinks de macOS, e o Windows bloqueia isso sem **Modo de
+> Desenvolvedor** (Configurações → Privacidade e segurança → Para desenvolvedores)
+> ou terminal como **Administrador**. O `package:portable` não precisa disso.
+
 Terminais 100% (node-pty nativo): com Visual Studio Build Tools (C++), rode
 `npm run rebuild`. Assinatura do `.exe` exige certificado (nasce da sua conta).
 
