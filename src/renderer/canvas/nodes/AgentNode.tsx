@@ -16,8 +16,11 @@ export function AgentNode(props: NodeProps): JSX.Element {
 
   const roleId = typeof node?.data['role'] === 'string' ? (node.data['role'] as string) : 'developer';
   const role = roleById(roleId);
-  const title = role ? `${role.emoji} ${role.label}` : 'Agente';
-  const harness = role?.harness ?? 'claude';
+  const customName = typeof node?.data['name'] === 'string' ? (node.data['name'] as string) : '';
+  const title = customName ? `${role?.emoji ?? '🤖'} ${customName}` : role ? `${role.emoji} ${role.label}` : 'Agente';
+  const harness = (typeof node?.data['harness'] === 'string' && node.data['harness']) ? (node.data['harness'] as string) : (role?.harness ?? 'claude');
+  const systemPrompt = (typeof node?.data['systemPrompt'] === 'string' && node.data['systemPrompt']) ? (node.data['systemPrompt'] as string) : (role?.systemPrompt ?? '');
+  const model = typeof node?.data['model'] === 'string' ? (node.data['model'] as string) : '';
 
   const visual = deriveVisual(slot?.state ?? initialSessionState(), { lastEventAt: slot?.lastEventAt ?? null });
   const active = visual.activity === 'working' || visual.activity === 'awaiting_approval' || visual.activity === 'cancelling';
@@ -28,7 +31,8 @@ export function AgentNode(props: NodeProps): JSX.Element {
       setDetail('escreva um prompt');
       return;
     }
-    const r = await bridge.agent.start(nodeId, { prompt, harness });
+    const composed = `${systemPrompt}\n\n---\n\nTAREFA:\n${prompt}\n\nTrabalhe no diretório do projeto. Ao terminar, resuma o que fez.`;
+    const r = await bridge.agent.start(nodeId, { prompt: composed, harness, ...(model ? { model } : {}) });
     setDetail(r.detail);
   };
   const cancel = async (): Promise<void> => {

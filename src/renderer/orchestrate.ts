@@ -28,8 +28,10 @@ function composePrompt(nodeId: string, g: OrchestratorGraph): string {
   const s = useFrigg.getState();
   const node = s.nodes.find((n) => n.id === nodeId);
   const role = roleById(typeof node?.data['role'] === 'string' ? (node.data['role'] as string) : 'developer');
+  const custom = typeof node?.data['systemPrompt'] === 'string' ? (node.data['systemPrompt'] as string) : '';
   const parts: string[] = [];
-  if (role) parts.push(role.systemPrompt);
+  const instructions = custom || role?.systemPrompt || '';
+  if (instructions) parts.push(instructions);
   if (s.objective.trim()) parts.push(`OBJETIVO DO PROJETO:\n${s.objective.trim()}`);
   const ups = upstreamsOf(g, nodeId);
   for (const up of ups) {
@@ -60,7 +62,9 @@ export async function pumpWorkflow(): Promise<void> {
     dispatched.add(id);
     const node = s.nodes.find((n) => n.id === id);
     const role = roleById(typeof node?.data['role'] === 'string' ? (node.data['role'] as string) : 'developer');
-    const r = await bridge.agent.start(id, { prompt: composePrompt(id, g), harness: role?.harness ?? 'claude' });
+    const harness = (typeof node?.data['harness'] === 'string' && node.data['harness']) ? (node.data['harness'] as string) : (role?.harness ?? 'claude');
+    const model = typeof node?.data['model'] === 'string' ? (node.data['model'] as string) : '';
+    const r = await bridge.agent.start(id, { prompt: composePrompt(id, g), harness, ...(model ? { model } : {}) });
     if (!r.ok) {
       // não conseguiu iniciar: registra falha para não travar o fluxo
       useFrigg.getState().applyEvent(id, { type: 'turn.failed', turnId: 'start', error: r.detail });

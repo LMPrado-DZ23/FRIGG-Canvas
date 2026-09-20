@@ -71,3 +71,7 @@ body {
 .term-wrap .warn { color: var(--warn); padding: 8px; font-size: 12px; }
 .muted { color: var(--muted); }
 h3 { margin: 6px 0; }
+.agent-editor { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.agent-editor label { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.fld { background: #0d1526; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; }
+.fld:focus { outline: none; border-color: var(--accent); }
