@@ -8,6 +8,19 @@
 import { app, BrowserWindow, ipcMain, type WebContents } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { appendFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+
+const LOG = join(tmpdir(), 'frigg-main.log');
+function log(msg: string): void {
+  try {
+    appendFileSync(LOG, `[${new Date().toISOString()}] ${msg}\n`);
+  } catch {
+    /* ignore */
+  }
+}
+process.on('uncaughtException', (e) => log(`uncaughtException: ${e instanceof Error ? e.stack ?? e.message : String(e)}`));
+process.on('unhandledRejection', (e) => log(`unhandledRejection: ${String(e)}`));
 import { OmniRouteClient } from '../core/omniroute-client.js';
 import { parseWorkspace, type WorkspaceDoc } from '../core/workspace.js';
 import { JsonFileStore } from './storage.js';
@@ -54,8 +67,19 @@ function createWindow(): void {
   win.on('closed', () => {
     if (mainWindow === win) mainWindow = null;
   });
-  if (DEV_URL) void win.loadURL(DEV_URL);
-  else void win.loadFile(join(__dirname, '../renderer/index.html'));
+  win.webContents.on('did-fail-load', (_e, code, desc, url) =>
+    log(`did-fail-load code=${code} desc=${desc} url=${url}`),
+  );
+  win.webContents.on('render-process-gone', (_e, d) => log(`render-process-gone: ${JSON.stringify(d)}`));
+  win.once('ready-to-show', () => log('ready-to-show'));
+  const indexPath = join(__dirname, '../renderer/index.html');
+  if (DEV_URL) {
+    log(`loadURL ${DEV_URL}`);
+    void win.loadURL(DEV_URL);
+  } else {
+    log(`loadFile ${indexPath}`);
+    void win.loadFile(indexPath).catch((e) => log(`loadFile erro: ${String(e)}`));
+  }
 }
 
 function registerIpc(): void {
@@ -109,6 +133,7 @@ function registerIpc(): void {
 }
 
 app.whenReady().then(() => {
+  log('whenReady');
   store = new JsonFileStore(join(app.getPath('userData'), 'workspace.json'));
   pty = new PtyHost({
     onData: (id, data) => send('pty:data', { id, data }),

@@ -12,6 +12,10 @@ const common = {
   sourcemap: true,
   external,
   logLevel: 'info',
+  // No bundle CJS, import.meta.url fica undefined. Injeta um valor válido a
+  // partir de __filename (disponível em CJS) para fileURLToPath funcionar.
+  define: { 'import.meta.url': '__frigg_import_meta_url' },
+  banner: { js: "const __frigg_import_meta_url = require('url').pathToFileURL(__filename).href;" },
 };
 
 await build({ ...common, entryPoints: ['src/main/main.ts'], outfile: 'dist/main/main.cjs' });
