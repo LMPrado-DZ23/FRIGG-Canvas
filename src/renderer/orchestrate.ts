@@ -70,6 +70,9 @@ export async function pumpWorkflow(): Promise<void> {
       useFrigg.getState().applyEvent(id, { type: 'turn.failed', turnId: 'start', error: r.detail });
     }
   }
+  // Reavalia após despachar: se completou ou travou, encerra o fluxo.
+  const st = sessionStates();
+  if (isComplete(g, st) || isStalled(g, st)) useFrigg.getState().setWorkflowRunning(false);
 }
 
 function sessionStates(): Record<string, import('../core/turn-state.js').AgentSessionState> {

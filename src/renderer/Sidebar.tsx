@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useFrigg } from './store.js';
 import type { NodeKind } from '../core/workspace.js';
+import { nodeTitle } from './node-label.js';
 
 export const KIND_ICON: Record<NodeKind, string> = {
   terminal: '⌨️',
@@ -11,12 +12,6 @@ export const KIND_ICON: Record<NodeKind, string> = {
   image: '🖼️',
   health: '📡',
 };
-
-function nodeLabel(kind: NodeKind, data: Readonly<Record<string, unknown>>): string {
-  if (typeof data['title'] === 'string' && data['title']) return data['title'];
-  if (typeof data['text'] === 'string' && data['text']) return (data['text'] as string).slice(0, 30);
-  return kind;
-}
 
 export function Sidebar(): JSX.Element {
   const nodes = useFrigg((s) => s.nodes);
@@ -34,7 +29,7 @@ export function Sidebar(): JSX.Element {
     );
   }
 
-  const list = nodes.filter((n) => nodeLabel(n.kind, n.data).toLowerCase().includes(filter.toLowerCase()));
+  const list = nodes.filter((n) => nodeTitle(n).toLowerCase().includes(filter.toLowerCase()));
 
   return (
     <div className="sidebar">
@@ -52,7 +47,7 @@ export function Sidebar(): JSX.Element {
             onClick={() => { select(n.id); setView('2d'); }}
           >
             <span>{KIND_ICON[n.kind]}</span>
-            <span className="sidebar-item-label">{nodeLabel(n.kind, n.data)}</span>
+            <span className="sidebar-item-label">{nodeTitle(n)}</span>
           </button>
         ))}
         {list.length === 0 ? <div className="muted" style={{ padding: 8 }}>Nenhum nó. Use “Adicionar”.</div> : null}

@@ -2,6 +2,7 @@ import { useFrigg } from './store.js';
 import { bridge } from './bridge.js';
 import { deriveVisual, activityLabel } from '../core/session-model.js';
 import { initialSessionState } from '../core/turn-state.js';
+import { nodeTitle } from './node-label.js';
 
 /**
  * View Operação (D01 4ª visão + D11 fallback acessível): lista DOM de todas as
@@ -33,7 +34,7 @@ export function OperationView(): JSX.Element {
               <tr key={n.id} style={{ borderTop: '1px solid var(--line)' }}>
                 <td>
                   <button className="btn" style={{ padding: '2px 8px' }} onClick={() => select(n.id)}>
-                    {String(n.data['title'] ?? n.kind)}
+                    {nodeTitle(n)}
                   </button>
                 </td>
                 <td><span className={`dot ${v.activity}`} style={{ display: 'inline-block', marginRight: 6 }} />{activityLabel(v.activity)}</td>
