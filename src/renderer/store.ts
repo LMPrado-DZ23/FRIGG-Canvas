@@ -81,7 +81,11 @@ export const useFrigg = create<FriggState>((set, get) => ({
             ? { title: 'Terminal' }
             : kind === 'browser'
               ? { title: 'Navegador', url: 'https://www.google.com/' }
-              : { title: 'OmniRoute' };
+              : kind === 'text'
+                ? { text: 'Título' }
+                : kind === 'image'
+                  ? { url: '' }
+                  : { title: 'OmniRoute' };
     set((s) => ({ nodes: [...s.nodes, { id, kind, position, data: { ...base, ...data } }], selectedId: id }));
     return id;
   },

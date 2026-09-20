@@ -1,8 +1,9 @@
-import { useEffect, useCallback, useState, lazy, Suspense } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { useFrigg } from './store.js';
 import { bridge } from './bridge.js';
 import { Canvas2D } from './canvas/Canvas2D.js';
 import { SidePanel } from './SidePanel.js';
+import { Sidebar } from './Sidebar.js';
 import { OperationView } from './OperationView.js';
 import { healthLabel } from '../core/omniroute-client.js';
 import { startWorkflow, pumpWorkflow } from './orchestrate.js';
@@ -72,16 +73,25 @@ export function App(): JSX.Element {
   const hp = health?.status ?? 'unknown';
   const healthClass = hp === 'reachable' ? 'ok' : hp === 'unavailable' ? 'down' : 'unknown';
 
-  const add = useCallback((k: 'terminal' | 'note' | 'agent' | 'browser') => () => addNode(k), [addNode]);
 
   return (
     <div className="app">
       <div className="topbar">
         <span className="brand">FRIGG</span>
-        <button className="btn" onClick={add('terminal')}>+ Terminal</button>
-        <button className="btn" onClick={add('agent')}>+ Agente</button>
-        <button className="btn" onClick={add('browser')}>+ Navegador</button>
-        <button className="btn" onClick={add('note')}>+ Nota</button>
+        <select
+          className="btn"
+          value=""
+          onChange={(e) => { if (e.target.value) { addNode(e.target.value as 'terminal'); } }}
+          title="Adicionar ao canvas"
+        >
+          <option value="">➕ Adicionar…</option>
+          <option value="terminal">⌨️ Terminal</option>
+          <option value="agent">🤖 Agente</option>
+          <option value="browser">🌐 Navegador</option>
+          <option value="note">📝 Nota</option>
+          <option value="text">🔤 Texto</option>
+          <option value="image">🖼️ Imagem</option>
+        </select>
         <select
           className="btn"
           value=""
@@ -112,6 +122,7 @@ export function App(): JSX.Element {
         <button className={`btn ${view === 'op' ? 'active' : ''}`} onClick={() => setView('op')}>Operação</button>
       </div>
       <div className="main">
+        <Sidebar />
         <div className="stage">
           {view === '2d' ? (
             <Canvas2D />

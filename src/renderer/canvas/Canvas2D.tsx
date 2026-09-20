@@ -6,6 +6,8 @@ import { NoteNode } from './nodes/NoteNode.js';
 import { AgentNode } from './nodes/AgentNode.js';
 import { HealthNode } from './nodes/HealthNode.js';
 import { BrowserNode } from './nodes/BrowserNode.js';
+import { TextNode } from './nodes/TextNode.js';
+import { ImageNode } from './nodes/ImageNode.js';
 
 const nodeTypes: NodeTypes = {
   terminal: TerminalNode,
@@ -13,6 +15,8 @@ const nodeTypes: NodeTypes = {
   agent: AgentNode,
   health: HealthNode,
   browser: BrowserNode,
+  text: TextNode,
+  image: ImageNode,
 };
 
 export function Canvas2D(): JSX.Element {

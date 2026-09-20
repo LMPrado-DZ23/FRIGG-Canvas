@@ -6,7 +6,7 @@
  * aqui como fonte operacional — só layout/preferências.
  */
 
-export type NodeKind = 'terminal' | 'note' | 'agent' | 'health' | 'browser';
+export type NodeKind = 'terminal' | 'note' | 'agent' | 'health' | 'browser' | 'text' | 'image';
 
 export interface NodePosition {
   readonly x: number;
@@ -34,7 +34,7 @@ export interface WorkspaceDoc {
   readonly edges: readonly WorkspaceEdge[];
 }
 
-export const NODE_KINDS: readonly NodeKind[] = ['terminal', 'note', 'agent', 'health', 'browser'];
+export const NODE_KINDS: readonly NodeKind[] = ['terminal', 'note', 'agent', 'health', 'browser', 'text', 'image'];
 
 export function emptyWorkspace(name = 'Workspace'): WorkspaceDoc {
   return { version: 1, name, nodes: [], edges: [] };
