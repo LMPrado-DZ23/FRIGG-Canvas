@@ -40,15 +40,24 @@ export function App(): JSX.Element {
   const [appError, setAppError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved');
   const [hydrated, setHydrated] = useState(false);
+  const [bootState, setBootState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [bootError, setBootError] = useState<string | null>(null);
+  const [bootAttempt, setBootAttempt] = useState(0);
 
   // Bootstrap: carrega workspace, sonda saúde/PTY e escuta eventos de agente.
   useEffect(() => {
+    setBootState('loading');
+    setBootError(null);
     void bridge.workspace.load()
       .then((r) => {
         loadLibrary(r.library, r.recovered);
         setHydrated(true);
+        setBootState('ready');
       })
-      .catch((error: unknown) => setAppError(`Não foi possível carregar o workspace: ${String(error)}`));
+      .catch((error: unknown) => {
+        setBootState('error');
+        setBootError(`Não foi possível carregar o workspace: ${String(error)}`);
+      });
     void bridge.pty.available().then(setPty).catch(() => setPty({ available: false, detail: 'IPC indisponível' }));
     const tick = (): void => void bridge.omniroute.health().then(setHealth).catch(() => undefined);
     tick();
@@ -65,7 +74,7 @@ export function App(): JSX.Element {
       offOutput();
       offCost();
     };
-  }, [loadLibrary, setHealth, setPty, applyEvent, setOutput, addCost]);
+  }, [bootAttempt, loadLibrary, setHealth, setPty, applyEvent, setOutput, addCost]);
 
   const onOrchestrate = (): void => {
     if (workflowRunning) {
@@ -95,6 +104,19 @@ export function App(): JSX.Element {
   const hp = health?.status ?? 'unknown';
   const healthClass = hp === 'reachable' ? 'ok' : hp === 'unavailable' ? 'down' : 'unknown';
 
+  if (bootState !== 'ready') {
+    return (
+      <div className="app" role="status" aria-live="polite">
+        <div className="modal-overlay">
+          <div className="modal" role="alertdialog" aria-labelledby="boot-title" aria-describedby="boot-detail">
+            <h3 id="boot-title">{bootState === 'loading' ? 'Carregando workspace…' : 'Não foi possível carregar o workspace'}</h3>
+            <p id="boot-detail" className="muted">{bootError ?? 'Aguarde enquanto o FRIGG recupera seus projetos.'}</p>
+            {bootState === 'error' ? <button className="btn active" onClick={() => setBootAttempt((n) => n + 1)}>Tentar novamente</button> : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app">
@@ -133,7 +155,7 @@ export function App(): JSX.Element {
         <button className={`btn ${workflowRunning ? 'active' : ''}`} onClick={onOrchestrate}>
           {workflowRunning ? '■ Parar' : '▶ Orquestrar'}
         </button>
-        {wfMsg ? <span className="muted">{wfMsg}</span> : null}
+        {wfMsg ? <span className="muted" aria-live="polite">{wfMsg}</span> : null}
         <div className="spacer" />
         <span className={`save-state ${saveState}`} aria-live="polite">
           {saveState === 'saving' ? 'Salvando…' : saveState === 'error' ? 'Não salvo' : 'Salvo'}

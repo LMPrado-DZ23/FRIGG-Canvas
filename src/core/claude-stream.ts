@@ -51,7 +51,10 @@ export function claudeMsgToEvents(msg: ClaudeMsg): SessionEvent[] {
     if (msg.is_error === true || msg.subtype === 'error') {
       return [{ type: 'turn.failed', turnId, error: msg.result ?? msg.subtype ?? 'erro' }];
     }
-    return [{ type: 'turn.completed', turnId }];
+    // O resultado de sucesso do harness é a validação operacional do turno.
+    // Emitimos antes de completed para o orquestrador nunca observar uma janela
+    // intermediária em que o turno pareça concluído sem estar elegível.
+    return [{ type: 'result.validated' }, { type: 'turn.completed', turnId }];
   }
   // assistant | user | stream_event | outros system: atividade, sem transição.
   return [];

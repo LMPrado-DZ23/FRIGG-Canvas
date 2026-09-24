@@ -10,7 +10,7 @@
  *
  * Sem IO: o executor do renderer usa isto para disparar sessões via adaptador.
  */
-import type { AgentSessionState } from './turn-state.js';
+import { isEligibleForSuccessEdge, type AgentSessionState } from './turn-state.js';
 
 export interface OrchestratorGraph {
   readonly nodes: readonly { readonly id: string }[];
@@ -19,11 +19,11 @@ export interface OrchestratorGraph {
 
 export type NodeRunStatus = 'blocked' | 'ready' | 'running' | 'done' | 'failed';
 
-function statusOf(state: AgentSessionState | undefined): 'idle' | 'running' | 'done' | 'failed' {
+function statusOf(state: AgentSessionState | undefined): 'idle' | 'running' | 'done' | 'failed' | 'blocked' {
   if (!state) return 'idle';
   switch (state.turn) {
     case 'completed':
-      return 'done';
+      return isEligibleForSuccessEdge(state) ? 'done' : 'blocked';
     case 'running':
     case 'awaiting_approval':
     case 'cancelling':
@@ -75,6 +75,7 @@ export function nodeRunStatus(
   const self = statusOf(states[id]);
   if (self === 'done') return 'done';
   if (self === 'failed') return 'failed';
+  if (self === 'blocked') return 'blocked';
   if (self === 'running') return 'running';
   // idle: depende dos upstreams
   const ups = upstreamsOf(g, id);

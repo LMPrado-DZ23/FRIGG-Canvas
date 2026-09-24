@@ -53,7 +53,9 @@ export function BrowserNode(props: NodeProps): JSX.Element {
           src: url,
           className: 'nodrag nowheel',
           style: { width: 560, height: 380, display: 'inline-flex', background: '#fff' },
-          partition: 'persist:frigg-browser',
+          // Sessão efêmera: não persistir cookies/tokens de páginas visitadas.
+          // Persistência deliberada deve ser uma opção explícita no futuro.
+          partition: 'frigg-browser',
         })}
       </div>
       <Handle type="target" position={Position.Left} />

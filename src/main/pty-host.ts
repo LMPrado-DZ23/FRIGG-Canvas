@@ -1,7 +1,7 @@
 /**
  * FRIGG — host de PTY (terminais de CLI reais) no processo main.
  *
- * Usa @homebridge/node-pty-prebuilt-multiarch (binário pré-compilado, sem
+ * Usa @lydell/node-pty (binário/prebuild N-API, sem
  * compilador C++). Se o binário não casar com o ABI do Electron, o módulo
  * não carrega e a UI mostra "terminal indisponível" — NUNCA finge.
  *

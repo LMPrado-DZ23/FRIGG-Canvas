@@ -3,7 +3,7 @@ import { readyNodes, hasCycle, nodeRunStatus, isComplete, isStalled, type Orches
 import { runEvents, initialSessionState, type AgentSessionState, type SessionEvent } from './turn-state.js';
 
 const done = (): AgentSessionState =>
-  runEvents([{ type: 'process.started' }, { type: 'turn.started', turnId: 't' }, { type: 'turn.completed', turnId: 't' }]);
+  runEvents([{ type: 'process.started' }, { type: 'turn.started', turnId: 't' }, { type: 'result.validated' }, { type: 'turn.completed', turnId: 't' }]);
 const failed = (): AgentSessionState =>
   runEvents([{ type: 'process.started' }, { type: 'turn.started', turnId: 't' }, { type: 'turn.failed', turnId: 't', error: 'x' }]);
 const running = (): AgentSessionState =>
@@ -22,6 +22,16 @@ describe('orchestrator (grafo executável)', () => {
   it('B fica pronto só depois de A concluir; C depois de B', () => {
     expect(readyNodes(g, { A: done() })).toEqual(['B']);
     expect(readyNodes(g, { A: done(), B: done() })).toEqual(['C']);
+  });
+
+  it('conclusão sem validação não libera o downstream', () => {
+    const completedButUnvalidated = runEvents([
+      { type: 'process.started' },
+      { type: 'turn.started', turnId: 't' },
+      { type: 'turn.completed', turnId: 't' },
+    ]);
+    expect(nodeRunStatus(g, { A: completedButUnvalidated }, 'A')).toBe('blocked');
+    expect(readyNodes(g, { A: completedButUnvalidated })).toEqual([]);
   });
 
   it('nó em execução não é redisparado', () => {

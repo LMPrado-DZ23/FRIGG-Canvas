@@ -10,6 +10,7 @@ import { TextNode } from './nodes/TextNode.js';
 import { ImageNode } from './nodes/ImageNode.js';
 import { FileNode } from './nodes/FileNode.js';
 import { DrawNode } from './nodes/DrawNode.js';
+import { bridge } from '../bridge.js';
 
 const nodeTypes: NodeTypes = {
   terminal: TerminalNode,
@@ -30,6 +31,7 @@ export function Canvas2D(): JSX.Element {
   const select = useFrigg((s) => s.select);
   const addEdge = useFrigg((s) => s.addEdge);
   const removeNode = useFrigg((s) => s.removeNode);
+  const sessions = useFrigg((s) => s.sessions);
 
   const rfNodes = useMemo<Node[]>(
     () =>
@@ -49,7 +51,13 @@ export function Canvas2D(): JSX.Element {
 
   const onNodeDragStop = (_: unknown, node: Node): void => moveNode(node.id, node.position.x, node.position.y);
   const onNodeClick: NodeMouseHandler = (_, node) => select(node.id);
-  const onNodesDelete = (deleted: Node[]): void => { for (const n of deleted) removeNode(n.id); };
+  const onNodesDelete = (deleted: Node[]): void => {
+    for (const n of deleted) {
+      const turn = sessions[n.id]?.state.turn;
+      if (turn === 'running' || turn === 'awaiting_approval' || turn === 'cancelling') void bridge.agent.cancel(n.id);
+      removeNode(n.id);
+    }
+  };
   const onConnect = (c: Connection): void => {
     if (c.source && c.target) addEdge(c.source, c.target);
   };

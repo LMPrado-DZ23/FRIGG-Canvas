@@ -20,9 +20,10 @@ export function OperationView(): JSX.Element {
       <h3>Operação</h3>
       {nodes.length === 0 ? <p className="muted">Nenhum agente/terminal. Adicione no topo.</p> : null}
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <caption className="visually-hidden">Estado operacional de agentes e terminais</caption>
         <thead>
           <tr style={{ textAlign: 'left', color: 'var(--muted)' }}>
-            <th>Nó</th><th>Execução</th><th>Validação</th><th>Conexão</th><th>Ação</th>
+            <th scope="col">Nó</th><th scope="col">Execução</th><th scope="col">Validação</th><th scope="col">Conexão</th><th scope="col">Ação</th>
           </tr>
         </thead>
         <tbody>

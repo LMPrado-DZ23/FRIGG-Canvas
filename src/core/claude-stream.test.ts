@@ -29,7 +29,7 @@ describe('mapeamento claude -> SessionEvent', () => {
 
   it('result success conclui; result error falha', () => {
     expect(claudeMsgToEvents({ type: 'result', subtype: 'success', session_id: 's1', is_error: false }))
-      .toEqual([{ type: 'turn.completed', turnId: 's1' }]);
+      .toEqual([{ type: 'result.validated' }, { type: 'turn.completed', turnId: 's1' }]);
     const fail = claudeMsgToEvents({ type: 'result', subtype: 'error', is_error: true, result: 'boom' });
     expect(fail[0]!.type).toBe('turn.failed');
   });

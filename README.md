@@ -22,7 +22,7 @@ App desktop de **canvas + orquestração de agentes de IA** sobre o **OmniRoute*
 
 | Componente | Estado | Evidência |
 |---|---|---|
-| Núcleo: turn-state, session-model, workspace, segurança, omniroute-client, claude-stream, roles, orchestrator | ✅ testado | 62 testes Vitest |
+| Núcleo/adaptadores: turn-state, session-model, workspace, segurança, OmniRoute, Claude, Codex e IPC | ✅ testado | 70 testes Vitest + lint |
 | Typecheck strict | ✅ exit 0 | `npm run typecheck` |
 | Canvas 2D + nós + arestas + escritório 3D + Operação | ✅ build OK | `npm run build:renderer` |
 | Orquestração (papéis + grafo + templates) | ✅ implementado; motor testado | idem + testes |
@@ -33,7 +33,7 @@ App desktop de **canvas + orquestração de agentes de IA** sobre o **OmniRoute*
 ## Rodar (na sua máquina Windows)
 ```bash
 npm install
-npm test                 # 51 testes
+npm test                 # testes unitários e de contrato
 npm run build            # main + renderer
 npm start                # abre a janela (baixa o Electron na 1ª vez)
 ```
@@ -62,6 +62,14 @@ Terminais 100% (node-pty nativo): com Visual Studio Build Tools (C++), rode
 Endpoint local padrão: `http://localhost:20128` (inferência em `/v1`). Ausente = a UI
 mostra "indisponível" (nunca finge saúde). CLIs externas roteiam exportando
 `OPENAI_BASE_URL=http://localhost:20128/v1`.
+
+## Segurança e limitações operacionais
+
+- O terminal PTY executa comandos com as permissões do usuário que abriu o FRIGG. O canvas não é uma sandbox para comandos locais.
+- O navegador incorporado usa uma sessão efêmera por padrão; cookies e tokens não são persistidos entre execuções.
+- O renderer não tem acesso direto a Node.js, filesystem ou IPC cru: capacidades privilegiadas passam pelo preload e por handlers com validação runtime.
+- Um resultado só libera o próximo agente quando o harness reporta sucesso operacional e o estado está elegível para a aresta de sucesso; falhas e estados desconhecidos bloqueiam o downstream.
+- Para distribuição Windows, o workflow `Quality` executa o smoke test do portátil. O rebuild do PTY deve usar o pacote efetivamente importado: `npm run rebuild`.
 
 ## Arquitetura encarnada
 - **G4** processo ≠ turno ≠ resultado; cancelamento pedido ≠ confirmado; stream cortado

@@ -244,6 +244,7 @@ export const useFrigg = create<FriggState>((set, get) => ({
 
   applyEvent: (id, ev, at) =>
     set((s) => {
+      if (!s.nodes.some((node) => node.id === id)) return s;
       const prev = s.sessions[id]?.state ?? initialSessionState();
       const slot = s.sessions[id];
       return { sessions: { ...s.sessions, [id]: { ...slot, state: reduce(prev, ev), lastEventAt: at ?? Date.now() } } };
@@ -251,12 +252,14 @@ export const useFrigg = create<FriggState>((set, get) => ({
 
   setOutput: (id, text) =>
     set((s) => {
+      if (!s.nodes.some((node) => node.id === id)) return s;
       const slot = s.sessions[id] ?? { state: initialSessionState(), lastEventAt: Date.now() };
       return { sessions: { ...s.sessions, [id]: { ...slot, output: text } } };
     }),
 
   addCost: (id, usd) =>
     set((s) => {
+      if (!s.nodes.some((node) => node.id === id)) return s;
       const slot = s.sessions[id] ?? { state: initialSessionState(), lastEventAt: Date.now() };
       return { sessions: { ...s.sessions, [id]: { ...slot, costUsd: (slot.costUsd ?? 0) + usd } } };
     }),

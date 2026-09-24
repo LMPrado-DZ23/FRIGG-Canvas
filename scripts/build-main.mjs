@@ -3,7 +3,7 @@
 import { build } from 'esbuild';
 import { rmSync } from 'node:fs';
 
-const external = ['electron', '@lydell/node-pty', '@homebridge/node-pty-prebuilt-multiarch', 'node-pty', 'better-sqlite3'];
+const external = ['electron', '@lydell/node-pty', 'node-pty', 'better-sqlite3'];
 
 rmSync('dist/main', { recursive: true, force: true });
 rmSync('dist/preload', { recursive: true, force: true });
