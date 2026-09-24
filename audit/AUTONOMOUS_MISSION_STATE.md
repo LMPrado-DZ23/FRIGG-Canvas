@@ -43,21 +43,21 @@ budget:
   api_or_cost_limit: "sem APIs pagas novas"
 rollback_plan: "A branch main/origin/main permanece intacta; rollback = apagar a branch da missão local/remota ou restaurar o commit b10786a em uma branch nova. Nunca force-push."
 
-state: TESTING
+state: COMPLETED
 iteration: 5
 started_at: "2026-09-24T18:35:00-03:00"
-heartbeat_at: "2026-09-24T19:28:40-03:00"
-last_progress_at: "2026-09-24T19:28:40-03:00"
+heartbeat_at: "2026-09-24T19:30:30-03:00"
+last_progress_at: "2026-09-24T19:30:30-03:00"
 
 repository:
   path: "/home/ubuntu/FRIGG-Canvas"
   branch: "codex/final-hardening-20260924"
   upstream: "origin/main"
   remotes: ["origin=https://github.com/LMPrado-DZ23/FRIGG-Canvas.git"]
-  head: "527ee80"
+  head: "c1c3798"
   uncommitted_changes: true
 
-current_task: "Validar e publicar a primeira entrega Command Center"
+current_task: "Modernização Command Center publicada e validada no CI"
 current_failure: ""
 current_strategy: "Extensão visual incremental: preservar Canvas/Operação, adicionar dashboard, navegação e atalhos, depois testar e auditar"
 plan:
@@ -68,7 +68,7 @@ plan:
   - "Executar auditorias independentes e release gate"
   - "Modernizar shell visual e navegação (implementado)"
   - "Adicionar dashboard, command palette, templates e Operação aprimorada (implementado)"
-  - "Executar validação visual, acessibilidade, testes e atualizar PR (em andamento)"
+  - "Executar validação visual, acessibilidade, testes e atualizar PR (concluído)"
 completed_tasks:
   - "Contrato do orquestrador agora exige estado elegível/validado"
   - "Claude emite validação operacional antes de completed"
@@ -85,9 +85,7 @@ completed_tasks:
   - "Boot do workspace bloqueia edição em erro e oferece retry"
   - "Cancelamento ao remover/trocar workspace e eventos tardios ignorados"
   - "Teste de integração fake do handshake/cleanup Codex adicionado"
-pending_tasks:
-  - "testes e publicação"
-  - "testes e publicação"
+pending_tasks: []
 dependencies: []
 blockers: []
 approvals_pending: []
@@ -118,6 +116,7 @@ commands_and_tests:
   - "npm test — 70 testes aprovados"
   - "npm run build — aprovado; renderer modernizado em bundle de produção"
   - "ELECTRON_DISABLE_SANDBOX=1 timeout 18s xvfb-run -a npm start — processo Electron iniciou e smoke encerrou sem erro"
+  - "GitHub Actions Quality 36067668873 — test e windows-portable-smoke aprovados"
 evidence:
   - claim: "Remote autorizado e branch main limpa"
     command_or_observation: "git status --short --branch; git remote -v"
@@ -156,6 +155,6 @@ risks:
   - "Smoke real do PTY nativo depende do ambiente Windows e será coberto/registrado via CI"
   - "Integração Codex real depende de CLI instalada e não será simulada como integração real"
 
-context_summary: "Hardening anterior está publicado no PR #2 com CI verde. A primeira entrega Command Center foi implementada: dashboard, métricas, playbooks, command palette, shell de navegação, operação em cards e sistema visual acessível."
-next_action: "Commitar a modernização, enviar para a branch do PR e aguardar/validar CI remoto."
+context_summary: "Hardening anterior e modernização Command Center estão publicados no PR #2. Dashboard, métricas, playbooks, command palette, shell de navegação, operação em cards e sistema visual acessível foram implementados e validados localmente e no CI remoto."
+next_action: "Aguardar revisão humana e decisão de merge; não fazer merge automaticamente."
 resume_instructions: "Ler este checkpoint, verificar git status/branch e continuar pelos itens pendentes; não resetar ou apagar mudanças."
