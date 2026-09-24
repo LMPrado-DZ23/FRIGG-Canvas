@@ -37,21 +37,21 @@ budget:
   api_or_cost_limit: "sem APIs pagas novas"
 rollback_plan: "A branch main/origin/main permanece intacta; rollback = apagar a branch da missão local/remota ou restaurar o commit b10786a em uma branch nova. Nunca force-push."
 
-state: FINAL_AUDIT
-iteration: 3
+state: PUBLISHED
+iteration: 4
 started_at: "2026-09-24T18:35:00-03:00"
-heartbeat_at: "2026-09-24T18:56:00-03:00"
-last_progress_at: "2026-09-24T18:56:00-03:00"
+heartbeat_at: "2026-09-24T18:58:30-03:00"
+last_progress_at: "2026-09-24T18:58:30-03:00"
 
 repository:
   path: "/home/ubuntu/FRIGG-Canvas"
   branch: "codex/final-hardening-20260924"
   upstream: "origin/main"
   remotes: ["origin=https://github.com/LMPrado-DZ23/FRIGG-Canvas.git"]
-  head: "b10786a"
+  head: "50a9cc1"
   uncommitted_changes: true
 
-current_task: "Auditoria final, commit e publicação da branch"
+current_task: "Missão concluída; branch e PR publicados para revisão"
 current_failure: ""
 current_strategy: "Patches pequenos, testes puros primeiro, depois integração/CI e auditoria final"
 plan:
@@ -76,8 +76,7 @@ completed_tasks:
   - "Boot do workspace bloqueia edição em erro e oferece retry"
   - "Cancelamento ao remover/trocar workspace e eventos tardios ignorados"
   - "Teste de integração fake do handshake/cleanup Codex adicionado"
-pending_tasks:
-  - "auditoria final e publicação"
+pending_tasks: []
 dependencies: []
 blockers: []
 approvals_pending: []
@@ -112,14 +111,31 @@ evidence:
     result: "70 testes, typecheck, lint, build e audit aprovados"
     timestamp: "2026-09-24T18:55:44-03:00"
     artifact_or_log: "terminal"
-commits: []
-artifacts: []
-delegated_agents: []
-audits: []
+commits:
+  - hash: "50a9cc121f9aed7b77e9a8774063ab8d31d3e840"
+    message: "feat: harden agent lifecycle and release quality gates"
+    remote_branch: "origin/codex/final-hardening-20260924"
+    pull_request: "https://github.com/LMPrado-DZ23/FRIGG-Canvas/pull/2"
+artifacts:
+  - "audit/FINAL_THREE_AGENT_REVIEW.md"
+  - "docs/SECURITY.md"
+delegated_agents:
+  - id: "job_1JZhAQdd"
+    role: "Architect/Engineering"
+    result: "completed; blockers corrigidos"
+  - id: "job_UJW1DirG"
+    role: "Security/DevSecOps"
+    result: "completed; blockers corrigidos/documentados"
+  - id: "job_h484gAlE"
+    role: "Product/QA/UX"
+    result: "completed; P1/P2 priorizados e correções aplicadas"
+audits:
+  - "70 testes, lint, typecheck, build, audit moderate e diff check aprovados após npm ci limpo"
+  - "Smoke Electron tentado em xvfb; o ambiente iniciou download do runtime Electron antes do timeout, portanto o smoke nativo fica coberto pelo CI"
 risks:
   - "Smoke real do PTY nativo depende do ambiente Windows e será coberto/registrado via CI"
   - "Integração Codex real depende de CLI instalada e não será simulada como integração real"
 
 context_summary: "Repositório Electron/React público. Três auditorias independentes encontraram e a missão corrigiu shell injection, herança indiscriminada de ambiente, corrida de sessões, lifecycle Codex, prompt injection direta no encadeamento, boot sem retry, cancelamento órfão e gaps de lint/integração."
-next_action: "Registrar auditorias finais, executar clean install/smoke, revisar diff, commitar e fazer push da branch autorizada."
+next_action: "Aguardar revisão/CI do PR; não fazer merge automaticamente."
 resume_instructions: "Ler este checkpoint, verificar git status/branch e continuar pelos itens pendentes; não resetar ou apagar mudanças."
