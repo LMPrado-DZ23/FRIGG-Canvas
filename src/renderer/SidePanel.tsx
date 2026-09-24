@@ -13,9 +13,9 @@ function WorkDirField({ nodeId }: { nodeId: string }): JSX.Element {
   };
   return (
     <>
-      <label>Pasta de trabalho</label>
-      <div style={{ display: 'flex', gap: 4 }}>
-        <input className="fld" style={{ flex: 1 }} value={cwd} placeholder="padrão (home)" onChange={(e) => patch(nodeId, { cwd: e.target.value })} />
+        <label htmlFor={`${nodeId}-cwd`}>Pasta de trabalho</label>
+        <div style={{ display: 'flex', gap: 4 }}>
+        <input id={`${nodeId}-cwd`} className="fld" style={{ flex: 1 }} value={cwd} placeholder="padrão (home)" onChange={(e) => patch(nodeId, { cwd: e.target.value })} />
         <button className="btn" onClick={() => void pick()} title="Escolher pasta">📁</button>
         {cwd ? <button className="btn mini" onClick={() => patch(nodeId, { cwd: '' })} title="Limpar">✕</button> : null}
       </div>
@@ -31,10 +31,10 @@ function TerminalEditor({ nodeId }: { nodeId: string }): JSX.Element {
   const install = typeof node.data['install'] === 'string' ? (node.data['install'] as string) : '';
   return (
     <div className="agent-editor">
-      <label>Comando (CLI) — vazio = shell</label>
-      <input className="fld" value={command} placeholder="ex.: claude, codex, minha-cli --flag" onChange={(e) => patch(nodeId, { command: e.target.value })} />
-      <label>Instalar (opcional) — CLI fora da lista</label>
-      <input className="fld" value={install} placeholder="ex.: npm i -g minha-cli (roda se faltar)" onChange={(e) => patch(nodeId, { install: e.target.value })} />
+      <label htmlFor={`${nodeId}-command`}>Comando (CLI) — vazio = shell</label>
+      <input id={`${nodeId}-command`} className="fld" value={command} placeholder="ex.: claude, codex, minha-cli --flag" onChange={(e) => patch(nodeId, { command: e.target.value })} />
+      <label htmlFor={`${nodeId}-install`}>Instalar (opcional) — CLI fora da lista</label>
+      <input id={`${nodeId}-install`} className="fld" value={install} placeholder="ex.: npm i -g minha-cli (roda se faltar)" onChange={(e) => patch(nodeId, { install: e.target.value })} />
       <div className="muted" style={{ fontSize: 12 }}>Se preencher, o FRIGG instala antes de rodar quando o CLI não existir. Reabra o terminal para reexecutar.</div>
       <WorkDirField nodeId={nodeId} />
     </div>
@@ -56,16 +56,17 @@ function AgentEditor({ nodeId }: { nodeId: string }): JSX.Element {
 
   return (
     <div className="agent-editor">
-      <label>Nome</label>
-      <input className="fld" value={name} placeholder={role?.label ?? 'Agente'} onChange={(e) => patch(nodeId, { name: e.target.value })} />
+      <label htmlFor={`${nodeId}-name`}>Nome</label>
+      <input id={`${nodeId}-name`} className="fld" value={name} placeholder={role?.label ?? 'Agente'} onChange={(e) => patch(nodeId, { name: e.target.value })} />
 
-      <label>Papel (modelo de instrução)</label>
-      <select className="fld" value={roleId} onChange={(e) => patch(nodeId, { role: e.target.value })}>
+      <label htmlFor={`${nodeId}-role`}>Papel (modelo de instrução)</label>
+      <select id={`${nodeId}-role`} className="fld" value={roleId} onChange={(e) => patch(nodeId, { role: e.target.value })}>
         {ROLES.map((r) => <option key={r.id} value={r.id}>{r.emoji} {r.label}</option>)}
       </select>
 
-      <label>Instruções (o que este agente faz)</label>
+      <label htmlFor={`${nodeId}-prompt`}>Instruções (o que este agente faz)</label>
       <textarea
+        id={`${nodeId}-prompt`}
         className="fld"
         style={{ height: 160 }}
         value={effectivePrompt}
@@ -78,8 +79,8 @@ function AgentEditor({ nodeId }: { nodeId: string }): JSX.Element {
         <div className="muted" style={{ fontSize: 12 }}>Usando o texto padrão do papel. Edite acima para personalizar.</div>
       )}
 
-      <label style={{ marginTop: 8 }}>Harness</label>
-      <select className="fld" value={harness} onChange={(e) => patch(nodeId, { harness: e.target.value })}>
+      <label htmlFor={`${nodeId}-harness`} style={{ marginTop: 8 }}>Harness</label>
+      <select id={`${nodeId}-harness`} className="fld" value={harness} onChange={(e) => patch(nodeId, { harness: e.target.value })}>
         <option value="claude">Claude Code</option>
         <option value="codex">Codex</option>
       </select>
@@ -89,8 +90,8 @@ function AgentEditor({ nodeId }: { nodeId: string }): JSX.Element {
         </div>
       ) : null}
 
-      <label>Modelo (opcional)</label>
-      <input className="fld" value={model} placeholder="ex.: sonnet, gpt-5.6…" onChange={(e) => patch(nodeId, { model: e.target.value })} />
+      <label htmlFor={`${nodeId}-model`}>Modelo (opcional)</label>
+      <input id={`${nodeId}-model`} className="fld" value={model} placeholder="ex.: sonnet, gpt-5.6…" onChange={(e) => patch(nodeId, { model: e.target.value })} />
 
       <WorkDirField nodeId={nodeId} />
 

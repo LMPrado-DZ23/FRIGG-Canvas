@@ -8,8 +8,14 @@ import { autoInstallCommandWith } from '../../cli-catalog.js';
 export function TerminalView({ id, command, cwd, install }: { id: string; command?: string; cwd?: string; install?: string }): JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [warn, setWarn] = useState<string | null>(null);
+  const [approved, setApproved] = useState(!command?.trim() && !install?.trim());
 
   useEffect(() => {
+    setApproved(!command?.trim() && !install?.trim());
+  }, [command, install]);
+
+  useEffect(() => {
+    if (!approved) return undefined;
     const host = hostRef.current;
     if (!host) return;
     const term = new Terminal({
@@ -65,10 +71,16 @@ export function TerminalView({ id, command, cwd, install }: { id: string; comman
       bridge.pty.kill(id);
       term.dispose();
     };
-  }, [id, command, cwd, install]);
+  }, [id, command, cwd, install, approved]);
 
   return (
     <div className="term-wrap">
+      {!approved ? (
+        <div className="warn" role="alert">
+          Este terminal executará <code>{command?.trim() || 'um instalador configurado'}</code> no diretório escolhido.
+          <button className="btn mini nodrag" onClick={() => setApproved(true)}>Confirmar execução</button>
+        </div>
+      ) : null}
       {warn ? <div className="warn">{warn}</div> : null}
       <div className="term nodrag nowheel" ref={hostRef} />
     </div>

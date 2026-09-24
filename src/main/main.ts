@@ -11,7 +11,7 @@ import { dirname, join } from 'node:path';
 import { appendFileSync, existsSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
-const LOG = join(tmpdir(), 'frigg-main.log');
+const LOG = join(tmpdir(), `frigg-main-${process.pid}.log`);
 function log(msg: string): void {
   try {
     appendFileSync(LOG, `[${new Date().toISOString()}] ${msg}\n`);
@@ -28,11 +28,14 @@ import { PtyHost, isPtyAvailable, ptyLoadError, ensurePtyLoaded } from './pty-ho
 import { startClaudeSession } from './adapters/claude-adapter.js';
 import { startCodexSession } from './adapters/codex-adapter.js';
 import type { ManagedSession } from './adapters/types.js';
-import { isSafeBrowserUrl, isTrustedRendererUrl, isValidTerminalSize } from '../core/security.js';
+import { isSafeBrowserUrl, isSafeOmniRouteUrl, isTrustedRendererUrl, isValidTerminalSize } from '../core/security.js';
 import { isCliAvailable } from './cli-availability.js';
+import { boundedString, validAgentParams, validId } from './ipc-validation.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OMNIROUTE_BASE_URL = process.env['FRIGG_OMNIROUTE_URL'] ?? 'http://localhost:20128';
+const configuredOmniRoute = process.env['FRIGG_OMNIROUTE_URL'] ?? 'http://localhost:20128';
+const OMNIROUTE_BASE_URL = isSafeOmniRouteUrl(configuredOmniRoute) ? configuredOmniRoute : 'http://localhost:20128';
+if (configuredOmniRoute !== OMNIROUTE_BASE_URL) log('FRIGG_OMNIROUTE_URL inválida; usando endpoint local padrão');
 const DEV_URL = process.env['FRIGG_DEV_URL'];
 const PACKAGED_RENDERER_URL = pathToFileURL(join(__dirname, '../renderer/index.html')).href;
 
@@ -48,6 +51,7 @@ let store: JsonFileStore;
 let pty: PtyHost;
 let mainWindow: BrowserWindow | null = null;
 const agents = new Map<string, ManagedSession>();
+const startingAgents = new Set<string>();
 
 function send(channel: string, payload: unknown): void {
   const wc: WebContents | undefined = mainWindow?.webContents;
@@ -146,8 +150,9 @@ function registerIpc(): void {
   });
   ipcMain.handle('pty:start', async (event, id: string, cols: number, rows: number, command?: string, cwd?: string) => {
     assertTrustedIpc(event);
-    if (typeof id !== 'string' || id.length === 0 || id.length > 128) return { ok: false, detail: 'id inválido' };
-    if (command && command.length > 4_096) return { ok: false, detail: 'comando excede o limite' };
+    if (!validId(id)) return { ok: false, detail: 'id inválido' };
+    if (command !== undefined && !boundedString(command, 4_096)) return { ok: false, detail: 'comando inválido ou excede o limite' };
+    if (cwd !== undefined && !boundedString(cwd, 32_768)) return { ok: false, detail: 'diretório inválido ou excede o limite' };
     if (!isValidTerminalSize(cols, rows)) return { ok: false, detail: 'dimensões do terminal inválidas' };
     const dir = cwd && cwd.length > 0 ? cwd : app.getPath('home');
     if (!existsSync(dir) || !statSync(dir).isDirectory()) return { ok: false, detail: 'diretório de trabalho inválido' };
@@ -179,24 +184,26 @@ function registerIpc(): void {
   });
   ipcMain.on('pty:write', (event, id: string, data: string) => {
     assertTrustedIpc(event);
-    if (typeof data === 'string' && data.length <= 64_000) pty.write(String(id), data);
+    if (validId(id) && boundedString(data, 64_000)) pty.write(id, data);
   });
   ipcMain.on('pty:resize', (event, id: string, cols: number, rows: number) => {
     assertTrustedIpc(event);
-    if (isValidTerminalSize(cols, rows)) pty.resize(String(id), cols, rows);
+    if (validId(id) && isValidTerminalSize(cols, rows)) pty.resize(id, cols, rows);
   });
   ipcMain.on('pty:kill', (event, id: string) => {
     assertTrustedIpc(event);
-    pty.kill(String(id));
+    if (validId(id)) pty.kill(id);
   });
 
   // Agentes gerenciados (harness real): Claude Code e Codex.
   ipcMain.handle('agent:start', async (event, id: string, params: { prompt: string; harness?: string; model?: string; cwd?: string }) => {
     assertTrustedIpc(event);
-    if (typeof id !== 'string' || id.length === 0 || id.length > 128) return { ok: false, detail: 'id inválido' };
-    if (!params || typeof params.prompt !== 'string' || params.prompt.length === 0 || params.prompt.length > 100_000)
+    if (!validId(id)) return { ok: false, detail: 'id inválido' };
+    if (!validAgentParams(params))
       return { ok: false, detail: 'prompt inválido' };
-    if (agents.has(id)) return { ok: false, detail: 'sessão já ativa' };
+    if (agents.has(id) || startingAgents.has(id)) return { ok: false, detail: 'sessão já ativa ou iniciando' };
+    startingAgents.add(id);
+    try {
     const harness = params.harness ?? 'claude';
     if (harness !== 'claude' && harness !== 'codex') return { ok: false, detail: `adaptador '${harness}' não implementado` };
     if (!(await isCliAvailable(harness)))
@@ -225,17 +232,25 @@ function registerIpc(): void {
     return endedBeforeRegistration
       ? { ok: false, detail: `não foi possível iniciar (${harness})` }
       : { ok: true, detail: `iniciado (${harness})` };
+    } catch (error) {
+      log(`agent:start falhou id=${id}: ${String(error)}`);
+      return { ok: false, detail: `falha ao iniciar agente: ${String(error)}` };
+    } finally {
+      startingAgents.delete(id);
+    }
   });
   ipcMain.handle('agent:cancel', async (event, id: string) => {
     assertTrustedIpc(event);
+    if (!validId(id)) return { ok: false };
     agents.get(id)?.cancel();
     agents.delete(id);
     return { ok: true };
   });
   ipcMain.handle('agent:approve', async (event, id: string, requestId: string, decision: 'approved' | 'denied') => {
     assertTrustedIpc(event);
+    if (!validId(id) || !boundedString(requestId, 256, true)) return { ok: false };
     if (decision !== 'approved' && decision !== 'denied') return { ok: false };
-    agents.get(id)?.approve?.(String(requestId), decision);
+    agents.get(id)?.approve?.(requestId, decision);
     return { ok: true };
   });
 }

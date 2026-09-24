@@ -10,6 +10,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { parseStreamLine, claudeMsgToEvents, costFromResult } from '../../core/claude-stream.js';
 import type { ManagedSession, AgentCallbacks } from './types.js';
+import { buildAgentEnv } from './agent-env.js';
 
 export interface StartAgentParams {
   readonly cwd: string;
@@ -28,13 +29,13 @@ export function buildClaudeArgs(params: Pick<StartAgentParams, 'prompt' | 'model
 export function startClaudeSession(params: StartAgentParams, cb: AgentCallbacks): ManagedSession {
   const args = buildClaudeArgs(params);
 
-  const env = { ...process.env };
+  const env = buildAgentEnv();
   // Rotear pelo OmniRoute (endpoint compatível). Só efetivo se a rota estiver ok.
   if (params.baseUrl) env['ANTHROPIC_BASE_URL'] = params.baseUrl;
 
   let child: ChildProcessWithoutNullStreams;
   try {
-    child = spawn('claude', args, { cwd: params.cwd, env, shell: process.platform === 'win32' });
+    child = spawn('claude', args, { cwd: params.cwd, env, shell: false });
   } catch (err) {
     cb.onEvent({ type: 'turn.failed', turnId: 'claude', error: `spawn falhou: ${String(err)}` });
     return { cancel: () => {} };
@@ -43,6 +44,7 @@ export function startClaudeSession(params: StartAgentParams, cb: AgentCallbacks)
   cb.onEvent({ type: 'process.started' });
 
   let sawResult = false;
+  let terminalEmitted = false;
   let buf = '';
   const handleLine = (line: string): void => {
     const msg = parseStreamLine(line);
@@ -53,7 +55,11 @@ export function startClaudeSession(params: StartAgentParams, cb: AgentCallbacks)
       if (usd !== null) cb.onCost?.(usd);
       if (typeof msg.result === 'string' && msg.result.length > 0) cb.onOutput?.(msg.result);
     }
-    for (const ev of claudeMsgToEvents(msg)) cb.onEvent(ev);
+    for (const ev of claudeMsgToEvents(msg)) {
+      if (terminalEmitted) continue;
+      cb.onEvent(ev);
+      if (ev.type === 'turn.completed' || ev.type === 'turn.failed') terminalEmitted = true;
+    }
   };
 
   child.stdout.setEncoding('utf8');
@@ -75,7 +81,10 @@ export function startClaudeSession(params: StartAgentParams, cb: AgentCallbacks)
   });
 
   child.on('error', (err) => {
-    cb.onEvent({ type: 'turn.failed', turnId: 'claude', error: `claude não encontrado? ${err.message}` });
+    if (!terminalEmitted) {
+      terminalEmitted = true;
+      cb.onEvent({ type: 'turn.failed', turnId: 'claude', error: `claude não encontrado? ${err.message}` });
+    }
   });
 
   child.on('close', (code) => {
@@ -83,9 +92,12 @@ export function startClaudeSession(params: StartAgentParams, cb: AgentCallbacks)
     if (!sawResult) {
       // Sem `result`: não concluiu. Sinaliza saída de processo (→ unknown na máquina).
       const detail = stderr.trim().slice(-300);
-      if (detail) cb.onEvent({ type: 'turn.failed', turnId: 'claude', error: detail });
-      cb.onEvent({ type: 'process.exited', code: code ?? -1 });
+      if (detail && !terminalEmitted) {
+        terminalEmitted = true;
+        cb.onEvent({ type: 'turn.failed', turnId: 'claude', error: detail });
+      }
     }
+    cb.onEvent({ type: 'process.exited', code: code ?? -1 });
   });
 
   return {

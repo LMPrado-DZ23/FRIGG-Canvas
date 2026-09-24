@@ -7,6 +7,7 @@ export function DeleteBtn({ id }: { id: string }): JSX.Element {
     <button
       className="btn mini nodrag node-x"
       title="Remover nó (ou tecla Delete)"
+      aria-label="Remover nó"
       onClick={(e) => { e.stopPropagation(); remove(id); }}
     >
       ✕

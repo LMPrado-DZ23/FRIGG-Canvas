@@ -9,6 +9,17 @@ export function isSafeBrowserUrl(value: string): boolean {
   }
 }
 
+export function isSafeOmniRouteUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (url.username || url.password || url.search || url.hash) return false;
+    if (url.protocol === 'http:') return ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    return url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export function normalizeBrowserInput(input: string): string {
   const value = input.trim();
   if (!value) return 'https://www.google.com/';

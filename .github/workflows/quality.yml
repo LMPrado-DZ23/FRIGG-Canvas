@@ -18,10 +18,23 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm audit --audit-level=high
+      - run: npm audit --audit-level=moderate
+      - name: Secret scan
+        shell: bash
+        run: |
+          ! git grep -n -I -E 'BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,}' -- ':!package-lock.json' ':!.env.example'
+      - run: npm run lint
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
+      - name: Electron smoke (Linux)
+        shell: bash
+        run: |
+          set +e
+          ELECTRON_DISABLE_SANDBOX=1 timeout 20s xvfb-run -a npm start > /tmp/frigg-electron-smoke.log 2>&1
+          code=$?
+          cat /tmp/frigg-electron-smoke.log
+          if [ "$code" -ne 124 ]; then exit "$code"; fi
 
   windows-portable-smoke:
     runs-on: windows-latest

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSafeBrowserUrl, isTrustedRendererUrl, isValidTerminalSize, normalizeBrowserInput } from './security.js';
+import { isSafeBrowserUrl, isSafeOmniRouteUrl, isTrustedRendererUrl, isValidTerminalSize, normalizeBrowserInput } from './security.js';
 
 describe('fronteira de confiança do renderer', () => {
   it('aceita apenas o renderer empacotado e a origem de desenvolvimento configurada', () => {
@@ -32,5 +32,15 @@ describe('dimensões do terminal', () => {
     expect(isValidTerminalSize(Number.NaN, 24)).toBe(false);
     expect(isValidTerminalSize(-1, 24)).toBe(false);
     expect(isValidTerminalSize(100_000, 24)).toBe(false);
+  });
+});
+
+describe('endpoint OmniRoute', () => {
+  it('permite loopback HTTP e HTTPS sem credenciais/query', () => {
+    expect(isSafeOmniRouteUrl('http://localhost:20128')).toBe(true);
+    expect(isSafeOmniRouteUrl('http://127.0.0.1:20128')).toBe(true);
+    expect(isSafeOmniRouteUrl('https://omni.example/v1')).toBe(true);
+    expect(isSafeOmniRouteUrl('http://10.0.0.1:20128')).toBe(false);
+    expect(isSafeOmniRouteUrl('https://user:secret@omni.example')).toBe(false);
   });
 });

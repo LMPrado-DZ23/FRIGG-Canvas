@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useFrigg } from './store.js';
 import type { NodeKind } from '../core/workspace.js';
 import { nodeTitle } from './node-label.js';
+import { bridge } from './bridge.js';
 
 export const KIND_ICON: Record<NodeKind, string> = {
   terminal: '⌨️',
@@ -29,6 +30,7 @@ export function Sidebar(): JSX.Element {
   const addWorkspace = useFrigg((s) => s.addWorkspace);
   const renameWorkspace = useFrigg((s) => s.renameWorkspace);
   const deleteWorkspace = useFrigg((s) => s.deleteWorkspace);
+  const sessions = useFrigg((s) => s.sessions);
   const [filter, setFilter] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [editingWs, setEditingWs] = useState(false);
@@ -62,13 +64,19 @@ export function Sidebar(): JSX.Element {
         />
       ) : (
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          <select className="fld" style={{ flex: 1 }} value={activeWorkspaceId} onChange={(e) => switchWorkspace(e.target.value)}>
+          <select className="fld" style={{ flex: 1 }} value={activeWorkspaceId} onChange={(e) => {
+            for (const node of nodes) {
+              const turn = sessions[node.id]?.state.turn;
+              if (node.kind === 'agent' && (turn === 'running' || turn === 'awaiting_approval' || turn === 'cancelling')) void bridge.agent.cancel(node.id);
+            }
+            switchWorkspace(e.target.value);
+          }}>
             {workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
           <button className="btn mini" title="Novo projeto" onClick={() => addWorkspace()}>＋</button>
           <button className="btn mini" title="Renomear" onClick={() => setEditingWs(true)}>✎</button>
           {workspaces.length > 1 ? (
-            <button className="btn mini node-x" title="Excluir projeto" onClick={() => { if (confirm(`Excluir o projeto "${activeName}"? Os nós dele serão perdidos.`)) deleteWorkspace(activeWorkspaceId); }}>🗑</button>
+            <button className="btn mini node-x" title="Excluir projeto" aria-label="Excluir projeto" onClick={() => { if (confirm(`Excluir o projeto "${activeName}"? Os nós dele serão perdidos.`)) { for (const node of nodes) { const turn = sessions[node.id]?.state.turn; if (node.kind === 'agent' && (turn === 'running' || turn === 'awaiting_approval' || turn === 'cancelling')) void bridge.agent.cancel(node.id); } deleteWorkspace(activeWorkspaceId); } }}>🗑</button>
           ) : null}
         </div>
       )}
