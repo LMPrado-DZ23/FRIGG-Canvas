@@ -1,7 +1,7 @@
 # FRIGG Canvas — estado da missão autônoma
 
 mission_id: "20260924-1835-frigg-final-hardening"
-objective: "Aplicar a auditoria técnica no FRIGG Canvas, corrigir riscos prioritários, adicionar qualidade/testes/documentação e publicar uma branch verificável no GitHub."
+objective: "Modernizar o FRIGG Canvas para uma experiência Command Center mais clara, útil, produtiva e visualmente madura, preservando os hardenings da missão anterior."
 scope:
   in:
     - "Contrato de sucesso/validação na orquestração"
@@ -9,6 +9,8 @@ scope:
     - "Validação IPC, webview, PTY e persistência"
     - "Acessibilidade, lint, testes, CI e documentação"
     - "Build, smoke tests e publicação no GitHub"
+    - "Dashboard inicial, navegação, command palette, templates e visão Operação moderna"
+    - "Sistema visual, estados vazios/loading/erro/sucesso e responsividade"
   out:
     - "Deploy de produção"
     - "Assinatura de executável ou credenciais externas"
@@ -21,6 +23,10 @@ acceptance_criteria:
   - "CI inclui gates reproduzíveis"
   - "Documentação atualizada"
   - "Branch publicada e verificada no remote autorizado"
+  - "Dashboard e navegação principal funcionam com estado vazio e workspace real"
+  - "Command palette funciona por teclado e oferece ações úteis"
+  - "Templates de workflow podem ser escolhidos e instanciados"
+  - "UI permanece acessível, responsiva e compatível com os fluxos atuais"
 gates:
   required: [lint, typecheck, unit, integration, security, build, functional_acceptance, final_audit]
   not_applicable:
@@ -37,29 +43,32 @@ budget:
   api_or_cost_limit: "sem APIs pagas novas"
 rollback_plan: "A branch main/origin/main permanece intacta; rollback = apagar a branch da missão local/remota ou restaurar o commit b10786a em uma branch nova. Nunca force-push."
 
-state: PUBLISHED
-iteration: 4
+state: TESTING
+iteration: 5
 started_at: "2026-09-24T18:35:00-03:00"
-heartbeat_at: "2026-09-24T18:58:30-03:00"
-last_progress_at: "2026-09-24T18:58:30-03:00"
+heartbeat_at: "2026-09-24T19:28:40-03:00"
+last_progress_at: "2026-09-24T19:28:40-03:00"
 
 repository:
   path: "/home/ubuntu/FRIGG-Canvas"
   branch: "codex/final-hardening-20260924"
   upstream: "origin/main"
   remotes: ["origin=https://github.com/LMPrado-DZ23/FRIGG-Canvas.git"]
-  head: "50a9cc1"
+  head: "527ee80"
   uncommitted_changes: true
 
-current_task: "Missão concluída; branch e PR publicados para revisão"
+current_task: "Validar e publicar a primeira entrega Command Center"
 current_failure: ""
-current_strategy: "Patches pequenos, testes puros primeiro, depois integração/CI e auditoria final"
+current_strategy: "Extensão visual incremental: preservar Canvas/Operação, adicionar dashboard, navegação e atalhos, depois testar e auditar"
 plan:
   - "Corrigir sucesso validado e lifecycle dos adaptadores"
   - "Criar validação IPC reutilizável e endurecer webview/PTY"
   - "Adicionar lint e testes de integração/contrato"
   - "Atualizar README, CI e documentação de segurança"
   - "Executar auditorias independentes e release gate"
+  - "Modernizar shell visual e navegação (implementado)"
+  - "Adicionar dashboard, command palette, templates e Operação aprimorada (implementado)"
+  - "Executar validação visual, acessibilidade, testes e atualizar PR (em andamento)"
 completed_tasks:
   - "Contrato do orquestrador agora exige estado elegível/validado"
   - "Claude emite validação operacional antes de completed"
@@ -76,7 +85,9 @@ completed_tasks:
   - "Boot do workspace bloqueia edição em erro e oferece retry"
   - "Cancelamento ao remover/trocar workspace e eventos tardios ignorados"
   - "Teste de integração fake do handshake/cleanup Codex adicionado"
-pending_tasks: []
+pending_tasks:
+  - "testes e publicação"
+  - "testes e publicação"
 dependencies: []
 blockers: []
 approvals_pending: []
@@ -84,14 +95,16 @@ hypotheses: []
 decisions:
   - "Branch própria em vez de alterar main: preserva rollback e facilita revisão."
   - "Não adicionar auto-instalação silenciosa de CLIs: execução de instalação continua explícita no terminal."
+  - "Direção visual assumida: Command Center, porque combina melhor com agentes, workflows e observabilidade do FRIGG."
+  - "Preservar Canvas 2D como núcleo e adicionar Dashboard como visão inicial de produtividade, sem remover recursos existentes."
 strategies_tried: []
 discarded_hypotheses: []
 attempt_count: 1
 same_failure_count: 0
-tests_passed_delta: 8
+tests_passed_delta: 0
 tests_failed_delta: 0
 completed_tasks_delta: 0
-files_changed: ["src/core/orchestrator.ts", "src/core/orchestrator.test.ts", "src/core/claude-stream.ts", "src/core/claude-stream.test.ts", "src/main/adapters/codex-adapter.ts", "src/main/ipc-validation.ts", "src/main/ipc-validation.test.ts", "src/main/main.ts", "package.json", "package-lock.json", "eslint.config.js", ".github/workflows/quality.yml", "src/renderer/canvas/nodes/BrowserNode.tsx", "src/renderer/index.html", "src/renderer/NewTerminalModal.tsx", "src/renderer/SidePanel.tsx", "README.md", "docs/SECURITY.md"]
+files_changed: ["src/renderer/App.tsx", "src/renderer/store.ts", "src/renderer/styles.css", "src/renderer/Dashboard.tsx", "src/renderer/CommandPalette.tsx", "src/renderer/OperationView.tsx", "README.md", "audit/AUTONOMOUS_MISSION_STATE.md"]
 commands_and_tests:
   - "git status --short --branch"
   - "npm test; npm run typecheck; npm run build — baseline aprovado antes da missão"
@@ -100,6 +113,11 @@ commands_and_tests:
   - "npm run lint — aprovado"
   - "npm run build — aprovado"
   - "npm audit --audit-level=moderate — 0 vulnerabilidades"
+  - "npm run lint — aprovado após a correção do import não utilizado"
+  - "npm run typecheck — aprovado após ajuste de props opcionais estritas"
+  - "npm test — 70 testes aprovados"
+  - "npm run build — aprovado; renderer modernizado em bundle de produção"
+  - "ELECTRON_DISABLE_SANDBOX=1 timeout 18s xvfb-run -a npm start — processo Electron iniciou e smoke encerrou sem erro"
 evidence:
   - claim: "Remote autorizado e branch main limpa"
     command_or_observation: "git status --short --branch; git remote -v"
@@ -132,10 +150,12 @@ delegated_agents:
 audits:
   - "70 testes, lint, typecheck, build, audit moderate e diff check aprovados após npm ci limpo"
   - "Smoke Electron tentado em xvfb; o ambiente iniciou download do runtime Electron antes do timeout, portanto o smoke nativo fica coberto pelo CI"
+  - "PR #2 com CI verde; nova modernização será adicionada na mesma branch para revisão"
+  - "Secret scan e npm audit continuam limpos após a modernização"
 risks:
   - "Smoke real do PTY nativo depende do ambiente Windows e será coberto/registrado via CI"
   - "Integração Codex real depende de CLI instalada e não será simulada como integração real"
 
-context_summary: "Repositório Electron/React público. Três auditorias independentes encontraram e a missão corrigiu shell injection, herança indiscriminada de ambiente, corrida de sessões, lifecycle Codex, prompt injection direta no encadeamento, boot sem retry, cancelamento órfão e gaps de lint/integração."
-next_action: "Aguardar revisão/CI do PR; não fazer merge automaticamente."
+context_summary: "Hardening anterior está publicado no PR #2 com CI verde. A primeira entrega Command Center foi implementada: dashboard, métricas, playbooks, command palette, shell de navegação, operação em cards e sistema visual acessível."
+next_action: "Commitar a modernização, enviar para a branch do PR e aguardar/validar CI remoto."
 resume_instructions: "Ler este checkpoint, verificar git status/branch e continuar pelos itens pendentes; não resetar ou apagar mudanças."

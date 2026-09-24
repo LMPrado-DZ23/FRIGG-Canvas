@@ -7,8 +7,9 @@ import { Sidebar } from './Sidebar.js';
 import { OperationView } from './OperationView.js';
 import { healthLabel } from '../core/omniroute-client.js';
 import { startWorkflow, pumpWorkflow } from './orchestrate.js';
-import { TEAM_TEMPLATES } from './templates.js';
 import { NewTerminalModal } from './NewTerminalModal.js';
+import { Dashboard } from './Dashboard.js';
+import { CommandPalette } from './CommandPalette.js';
 
 // D04: o módulo 3D (Three.js) carrega sob demanda — não pesa no canvas 2D.
 const Office3D = lazy(() => import('./office/Office3D.js').then((m) => ({ default: m.Office3D })));
@@ -20,7 +21,6 @@ export function App(): JSX.Element {
   const setHealth = useFrigg((s) => s.setHealth);
   const setPty = useFrigg((s) => s.setPty);
   const loadLibrary = useFrigg((s) => s.loadLibrary);
-  const addNode = useFrigg((s) => s.addNode);
   const toLibrary = useFrigg((s) => s.toLibrary);
   const nodes = useFrigg((s) => s.nodes);
   const edges = useFrigg((s) => s.edges);
@@ -30,19 +30,25 @@ export function App(): JSX.Element {
   const applyEvent = useFrigg((s) => s.applyEvent);
   const setOutput = useFrigg((s) => s.setOutput);
   const addCost = useFrigg((s) => s.addCost);
-  const objective = useFrigg((s) => s.objective);
-  const setObjective = useFrigg((s) => s.setObjective);
   const workflowRunning = useFrigg((s) => s.workflowRunning);
   const setWorkflowRunning = useFrigg((s) => s.setWorkflowRunning);
-  const addTemplate = useFrigg((s) => s.addTemplate);
   const [wfMsg, setWfMsg] = useState<string | null>(null);
   const [showNewTerminal, setShowNewTerminal] = useState(false);
+  const [showPalette, setShowPalette] = useState(false);
   const [appError, setAppError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved');
   const [hydrated, setHydrated] = useState(false);
   const [bootState, setBootState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [bootError, setBootError] = useState<string | null>(null);
   const [bootAttempt, setBootAttempt] = useState(0);
+
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent): void => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setShowPalette(true); }
+    };
+    window.addEventListener('keydown', onShortcut);
+    return () => window.removeEventListener('keydown', onShortcut);
+  }, []);
 
   // Bootstrap: carrega workspace, sonda saúde/PTY e escuta eventos de agente.
   useEffect(() => {
@@ -121,49 +127,19 @@ export function App(): JSX.Element {
   return (
     <div className="app">
       <header className="topbar">
-        <span className="brand">FRIGG</span>
-        <div className="toolbar">
-          <button className="btn tool" aria-label="Adicionar terminal" title="Terminal" onClick={() => addNode('terminal')}>⌨️</button>
-          <button className="btn tool" aria-label="Adicionar agente" title="Agente" onClick={() => addNode('agent')}>🤖</button>
-          <button className="btn tool" aria-label="Adicionar navegador" title="Navegador" onClick={() => addNode('browser')}>🌐</button>
-          <button className="btn tool" aria-label="Adicionar nota" title="Nota" onClick={() => addNode('note')}>📝</button>
-          <button className="btn tool" aria-label="Adicionar texto" title="Texto" onClick={() => addNode('text')}>🔤</button>
-          <button className="btn tool" aria-label="Adicionar imagem" title="Imagem" onClick={() => addNode('image')}>🖼️</button>
-          <button className="btn tool" aria-label="Adicionar arquivo" title="Arquivo" onClick={() => addNode('file')}>📄</button>
-          <button className="btn tool" aria-label="Adicionar desenho" title="Desenho" onClick={() => addNode('draw')}>✏️</button>
-        </div>
-        <button className="btn" title="Novo terminal (assistente)" onClick={() => setShowNewTerminal(true)}>Novo terminal…</button>
-        <select
-          className="btn"
-          value=""
-          onChange={(e) => {
-            const tpl = TEAM_TEMPLATES.find((t) => t.id === e.target.value);
-            if (tpl) addTemplate(tpl.nodes, tpl.chain);
-          }}
-          title="Equipe pronta"
-        >
-          <option value="">+ Equipe…</option>
-          {TEAM_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-        </select>
-        <input
-          className="btn"
-          style={{ width: 260 }}
-          placeholder="Objetivo do projeto (para a equipe)…"
-          value={objective}
-          onChange={(e) => setObjective(e.target.value)}
-        />
-        <button className={`btn ${workflowRunning ? 'active' : ''}`} onClick={onOrchestrate}>
-          {workflowRunning ? '■ Parar' : '▶ Orquestrar'}
-        </button>
-        {wfMsg ? <span className="muted" aria-live="polite">{wfMsg}</span> : null}
-        <div className="spacer" />
-        <span className={`save-state ${saveState}`} aria-live="polite">
-          {saveState === 'saving' ? 'Salvando…' : saveState === 'error' ? 'Não salvo' : 'Salvo'}
-        </span>
-        <span className={`badge ${healthClass}`}>{healthLabel(hp)}</span>
-        <button className={`btn ${view === '2d' ? 'active' : ''}`} onClick={() => setView('2d')}>Canvas 2D</button>
-        <button className={`btn ${view === '3d' ? 'active' : ''}`} onClick={() => setView('3d')}>Escritório 3D</button>
-        <button className={`btn ${view === 'op' ? 'active' : ''}`} onClick={() => setView('op')}>Operação</button>
+        <button className="brand-lockup" aria-label="Ir para início" onClick={() => setView('home')}><span className="brand-mark">F</span><span className="brand-copy"><strong>FRIGG</strong><small>COMMAND CENTER</small></span></button>
+        <span className="topbar-divider" aria-hidden="true" />
+        <nav className="main-nav" aria-label="Navegação principal">
+          <button className={`nav-item ${view === 'home' ? 'active' : ''}`} onClick={() => setView('home')}>Início</button>
+          <button className={`nav-item ${view === '2d' ? 'active' : ''}`} onClick={() => setView('2d')}>Canvas</button>
+          <button className={`nav-item ${view === 'op' ? 'active' : ''}`} onClick={() => setView('op')}>Operação</button>
+        </nav>
+        <div className="topbar-spacer" />
+        <button className="command-trigger" onClick={() => setShowPalette(true)} aria-label="Abrir command palette"><span>⌕</span> Buscar ações… <kbd>⌘K</kbd></button>
+        <span className={`save-state ${saveState}`} aria-live="polite"><i />{saveState === 'saving' ? 'Salvando…' : saveState === 'error' ? 'Não salvo' : 'Salvo'}</span>
+        <span className={`status-pill topbar-status ${healthClass}`}><i />{healthLabel(hp)}</span>
+        <button className={`btn run-button ${workflowRunning ? 'active' : ''}`} onClick={onOrchestrate}>{workflowRunning ? '■ Parar' : '▶ Executar'}</button>
+        {wfMsg ? <span className="workflow-toast" aria-live="polite">{wfMsg}</span> : null}
       </header>
       {appError ? (
         <div className="app-alert" role="alert">
@@ -171,22 +147,9 @@ export function App(): JSX.Element {
           <button className="btn mini" onClick={() => setAppError(null)}>Fechar</button>
         </div>
       ) : null}
-      <div className="main">
-        <Sidebar />
-        <div className="stage">
-          {view === '2d' ? (
-            <Canvas2D />
-          ) : view === 'op' ? (
-            <OperationView />
-          ) : (
-            <Suspense fallback={<div style={{ padding: 16 }} className="muted">Carregando escritório 3D…</div>}>
-              <Office3D />
-            </Suspense>
-          )}
-        </div>
-        <SidePanel />
-      </div>
+      {view === 'home' ? <Dashboard /> : <div className="main"><Sidebar /><div className="stage">{view === '2d' ? <Canvas2D /> : view === 'op' ? <OperationView /> : <Suspense fallback={<div style={{ padding: 16 }} className="muted">Carregando escritório 3D…</div>}><Office3D /></Suspense>}</div><SidePanel /></div>}
       <NewTerminalModal open={showNewTerminal} onClose={() => setShowNewTerminal(false)} />
+      <CommandPalette open={showPalette} onClose={() => setShowPalette(false)} onNewTerminal={() => setShowNewTerminal(true)} onOrchestrate={onOrchestrate} />
     </div>
   );
 }

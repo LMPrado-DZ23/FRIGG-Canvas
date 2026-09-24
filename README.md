@@ -15,6 +15,9 @@ App desktop de **canvas + orquestração de agentes de IA** sobre o **OmniRoute*
   objetivo e clique **Orquestrar** — o FRIGG dispara cada agente na ordem certa,
   passando a saída de um para o próximo, respeitando falhas (não inventa sucesso).
 - **Escritório 3D** (mesma sessão do 2D) e visão **Operação** (lista acessível).
+- **Command Center** com dashboard inicial, resumo de saúde do workspace, playbooks,
+  ações rápidas e command palette (`Ctrl/Cmd + K`) para navegar e executar comandos sem
+  interromper o fluxo.
 - **Terminais de CLI de IA**: catálogo espelhando o OmniRoute — Code (26), Agent (10),
   Externas compatíveis (10).
 
@@ -24,7 +27,7 @@ App desktop de **canvas + orquestração de agentes de IA** sobre o **OmniRoute*
 |---|---|---|
 | Núcleo/adaptadores: turn-state, session-model, workspace, segurança, OmniRoute, Claude, Codex e IPC | ✅ testado | 70 testes Vitest + lint |
 | Typecheck strict | ✅ exit 0 | `npm run typecheck` |
-| Canvas 2D + nós + arestas + escritório 3D + Operação | ✅ build OK | `npm run build:renderer` |
+| Canvas 2D + nós + arestas + escritório 3D + Operação + Command Center | ✅ build OK | `npm run build:renderer` |
 | Orquestração (papéis + grafo + templates) | ✅ implementado; motor testado | idem + testes |
 | Adaptadores Claude (stream-json) e Codex (App Server) | 🟡 execução ao vivo requer CLI logada; aprovações interativas estão disponíveis no Codex | parser/argumentos testados |
 | Terminais PTY (node-pty pré-compilado) | 🟡 código pronto; binário nativo depende do ambiente | degrada p/ "indisponível" |
