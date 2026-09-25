@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { useFrigg } from '../../store.js';
 import { bridge } from '../../bridge.js';

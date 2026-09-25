@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { useFrigg } from './store.js';
 import { TEAM_TEMPLATES } from './templates.js';
 import { deriveVisual, activityLabel } from '../core/session-model.js';

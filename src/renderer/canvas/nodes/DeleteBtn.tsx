@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { useFrigg } from '../../store.js';
 
 /** Botão ✕ para remover o nó (além da tecla Delete e do painel lateral). */

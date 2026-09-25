@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useState, lazy, Suspense, type JSX } from 'react';
 import { useFrigg } from './store.js';
 import { bridge } from './bridge.js';
 import { Canvas2D } from './canvas/Canvas2D.js';

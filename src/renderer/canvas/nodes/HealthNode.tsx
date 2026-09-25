@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { type NodeProps } from '@xyflow/react';
 import { useFrigg } from '../../store.js';
 import { healthLabel } from '../../../core/omniroute-client.js';

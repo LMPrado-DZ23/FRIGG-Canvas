@@ -1,4 +1,4 @@
-import { useEffect, useRef, type PointerEvent as RPointerEvent } from 'react';
+import { useEffect, useRef, type PointerEvent as RPointerEvent, type JSX } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { useFrigg } from '../../store.js';
 import { DeleteBtn } from './DeleteBtn.js';

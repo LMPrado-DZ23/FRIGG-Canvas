@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type JSX } from 'react';
 import { ReactFlow, Background, Controls, MiniMap, type Node, type Edge, type NodeTypes, type NodeMouseHandler, type Connection } from '@xyflow/react';
 import { useFrigg } from '../store.js';
 import { TerminalNode } from './nodes/TerminalNode.js';

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type JSX } from 'react';
 import { useFrigg } from './store.js';
 import type { NodeKind } from '../core/workspace.js';
 import { TEAM_TEMPLATES } from './templates.js';

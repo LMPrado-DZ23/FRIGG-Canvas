@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type JSX } from 'react';
 import { useFrigg } from './store.js';
 import type { NodeKind } from '../core/workspace.js';
 import { nodeTitle } from './node-label.js';

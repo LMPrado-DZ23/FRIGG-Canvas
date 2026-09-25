@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { useFrigg } from './store.js';
 import { bridge } from './bridge.js';
 import { ROLES, roleById } from '../core/roles.js';

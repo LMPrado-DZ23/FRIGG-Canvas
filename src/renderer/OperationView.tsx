@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type JSX } from 'react';
 import { useFrigg } from './store.js';
 import { bridge } from './bridge.js';
 import { deriveVisual, activityLabel } from '../core/session-model.js';

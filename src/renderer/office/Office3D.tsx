@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type JSX } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, Text } from '@react-three/drei';
 import { useFrigg } from '../store.js';
