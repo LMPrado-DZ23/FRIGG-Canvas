@@ -49,7 +49,13 @@ export function TerminalView({ id, command, cwd, install }: { id: string; comman
         return;
       }
       const res = await bridge.pty.start(id, term.cols, term.rows, autoInstallCommandWith(command ?? '', install), cwd);
-      if (!res.ok && !disposed) setWarn(`Falha ao iniciar: ${res.detail}`);
+      if (disposed) {
+        // Desmontado com o start em voo: o kill do cleanup chegou antes do
+        // processo existir; encerra agora para não deixar um shell órfão.
+        if (res.ok) bridge.pty.kill(id);
+        return;
+      }
+      if (!res.ok) setWarn(`Falha ao iniciar: ${res.detail}`);
     })();
 
     const ro = new ResizeObserver(() => {

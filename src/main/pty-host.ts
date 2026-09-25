@@ -57,24 +57,35 @@ export interface PtyHostCallbacks {
 export class PtyHost {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private readonly procs = new Map<string, any>();
-  constructor(private readonly cb: PtyHostCallbacks) {}
+  /** `spawnImpl` permite injetar um PTY falso em testes; padrão = @lydell/node-pty. */
+  constructor(
+    private readonly cb: PtyHostCallbacks,
+    private readonly spawnImpl?: PtyModule['spawn'],
+  ) {}
 
   async start(id: string, cols: number, rows: number, cwd: string, command?: string): Promise<{ ok: boolean; detail: string }> {
-    await ensurePtyLoaded();
-    if (!mod) return { ok: false, detail: `PTY indisponível: ${loadError ?? 'módulo não carregado'}` };
+    if (!this.spawnImpl) await ensurePtyLoaded();
+    const spawnPty = this.spawnImpl ?? mod?.spawn;
+    if (!spawnPty) return { ok: false, detail: `PTY indisponível: ${loadError ?? 'módulo não carregado'}` };
     if (this.procs.has(id)) return { ok: false, detail: 'id de terminal já em uso' };
     // SEMPRE abre o shell; se houver um comando (ex.: claude, codex, deepseek),
     // ele é DIGITADO no shell. Assim o terminal fica vivo e mostra erro de CLI
     // ausente ("não reconhecido") em vez de morrer com código críptico.
-    const p = mod.spawn(defaultShell, [], {
+    const p = spawnPty(defaultShell, [], {
       name: 'xterm-color',
       cols: cols || 80,
       rows: rows || 24,
       cwd,
       env: process.env,
     });
-    p.onData((d: string) => this.cb.onData(id, d));
+    // Só o processo ATUAL do id fala com a UI: um PTY encerrado por kill() que
+    // emite dados/saída depois não pode derrubar um terminal novo com o mesmo id.
+    const isCurrent = (): boolean => this.procs.get(id) === p;
+    p.onData((d: string) => {
+      if (isCurrent()) this.cb.onData(id, d);
+    });
     p.onExit((e: { exitCode: number }) => {
+      if (!isCurrent()) return;
       this.procs.delete(id);
       this.cb.onExit(id, e.exitCode);
     });

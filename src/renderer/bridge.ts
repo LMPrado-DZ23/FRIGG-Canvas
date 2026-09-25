@@ -27,7 +27,7 @@ export const bridge: FriggApi = real ?? {
   },
   file: {
     async open(): Promise<{ ok: boolean }> {
-      return { ok: true };
+      return { ok: false };
     },
   },
   workspace: {

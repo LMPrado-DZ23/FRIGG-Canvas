@@ -28,7 +28,7 @@ import { PtyHost, isPtyAvailable, ptyLoadError, ensurePtyLoaded } from './pty-ho
 import { startClaudeSession } from './adapters/claude-adapter.js';
 import { startCodexSession } from './adapters/codex-adapter.js';
 import type { ManagedSession } from './adapters/types.js';
-import { isSafeBrowserUrl, isSafeOmniRouteUrl, isTrustedRendererUrl, isValidTerminalSize } from '../core/security.js';
+import { isExecutablePath, isSafeBrowserUrl, isSafeOmniRouteUrl, isTrustedRendererUrl, isValidTerminalSize } from '../core/security.js';
 import { isCliAvailable } from './cli-availability.js';
 import { boundedString, validAgentParams, validId } from './ipc-validation.js';
 
@@ -179,6 +179,7 @@ function registerIpc(): void {
     assertTrustedIpc(event);
     if (typeof p !== 'string' || p.length === 0 || p.length > 32_768 || !existsSync(p))
       return { ok: false, detail: 'arquivo inexistente ou caminho inválido' };
+    if (isExecutablePath(p)) return { ok: false, detail: 'por segurança, executáveis e scripts não são abertos pelo FRIGG' };
     const detail = await shell.openPath(p);
     return detail ? { ok: false, detail } : { ok: true };
   });
@@ -211,18 +212,20 @@ function registerIpc(): void {
     const cwd = params.cwd && params.cwd.length > 0 ? params.cwd : app.getPath('home');
     if (!existsSync(cwd) || !statSync(cwd).isDirectory()) return { ok: false, detail: 'diretório de trabalho inválido' };
     let endedBeforeRegistration = false;
+    let handle: ManagedSession | undefined;
     const cb = {
       onEvent: (agentEvent: import('../core/turn-state.js').SessionEvent) => {
         send('agent:event', { id, event: agentEvent });
         if (['turn.completed', 'turn.failed', 'cancel.confirmed', 'process.exited'].includes(agentEvent.type)) {
-          if (agents.has(id)) agents.delete(id);
-          else endedBeforeRegistration = true;
+          // Só remove a PRÓPRIA sessão: um evento tardio de uma sessão cancelada
+          // não pode desregistrar uma sessão nova iniciada com o mesmo id.
+          if (handle === undefined) endedBeforeRegistration = true;
+          else if (agents.get(id) === handle) agents.delete(id);
         }
       },
       onCost: (usd: number) => send('agent:cost', { id, usd }),
       onOutput: (text: string) => send('agent:output', { id, text }),
     };
-    let handle: ManagedSession;
     if (harness === 'claude') {
       handle = startClaudeSession({ cwd, prompt: params.prompt, ...(params.model ? { model: params.model } : {}), baseUrl: OMNIROUTE_BASE_URL }, cb);
     } else {
