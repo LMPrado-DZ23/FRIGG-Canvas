@@ -13,4 +13,10 @@ describe('buildClaudeArgs', () => {
     expect(buildClaudeArgs({ model: 'sonnet' }))
       .toEqual(['-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'default', '--model', 'sonnet']);
   });
+
+  it('continua a conversa e aplica o teto de gasto como argumentos separados', () => {
+    expect(buildClaudeArgs({ resumeSessionId: '3f1c2d9e-1b2a-4c3d-9e8f-0a1b2c3d4e5f', maxBudgetUsd: 1.5 }))
+      .toEqual(['-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'default',
+        '--resume', '3f1c2d9e-1b2a-4c3d-9e8f-0a1b2c3d4e5f', '--max-budget-usd', '1.5']);
+  });
 });

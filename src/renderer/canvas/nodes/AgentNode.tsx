@@ -5,6 +5,8 @@ import { bridge } from '../../bridge.js';
 import { deriveVisual, activityLabel } from '../../../core/session-model.js';
 import { initialSessionState } from '../../../core/turn-state.js';
 import { ROLES, roleById } from '../../../core/roles.js';
+import { formatUsd } from '../../../core/agent-policy.js';
+import { agentConfig, agentStartParams, composeTaskPrompt } from '../../agent-config.js';
 import { DeleteBtn } from './DeleteBtn.js';
 
 export function AgentNode(props: NodeProps): JSX.Element {
@@ -15,27 +17,27 @@ export function AgentNode(props: NodeProps): JSX.Element {
   const [prompt, setPrompt] = useState('');
   const [detail, setDetail] = useState<string | null>(null);
 
-  const roleId = typeof node?.data['role'] === 'string' ? (node.data['role'] as string) : 'developer';
-  const role = roleById(roleId);
+  const cfg = agentConfig(node?.data);
+  const role = roleById(cfg.roleId);
   const customName = typeof node?.data['name'] === 'string' ? (node.data['name'] as string) : '';
   const title = customName ? `${role?.emoji ?? '🤖'} ${customName}` : role ? `${role.emoji} ${role.label}` : 'Agente';
-  const harness = (typeof node?.data['harness'] === 'string' && node.data['harness']) ? (node.data['harness'] as string) : (role?.harness ?? 'claude');
-  const systemPrompt = (typeof node?.data['systemPrompt'] === 'string' && node.data['systemPrompt']) ? (node.data['systemPrompt'] as string) : (role?.systemPrompt ?? '');
-  const model = typeof node?.data['model'] === 'string' ? (node.data['model'] as string) : '';
-  const cwd = typeof node?.data['cwd'] === 'string' ? (node.data['cwd'] as string) : '';
 
   const visual = deriveVisual(slot?.state ?? initialSessionState(), { lastEventAt: slot?.lastEventAt ?? null });
   const active = visual.activity === 'working' || visual.activity === 'awaiting_approval' || visual.activity === 'cancelling';
   const pending = slot?.state.pendingApprovals ?? [];
+  const canContinue = cfg.sessionRef !== undefined;
 
-  const start = async (): Promise<void> => {
-    if (prompt.trim().length === 0) {
-      setDetail('escreva um prompt');
+  const run = async (resume: boolean): Promise<void> => {
+    const task = prompt.trim();
+    if (task.length === 0) {
+      setDetail('escreva uma mensagem');
       return;
     }
-    const composed = `${systemPrompt}\n\n---\n\nTAREFA:\n${prompt}\n\nTrabalhe no diretório do projeto. Ao terminar, resuma o que fez.`;
-    const r = await bridge.agent.start(nodeId, { prompt: composed, harness, ...(model ? { model } : {}), ...(cwd ? { cwd } : {}) });
+    // Continuação: a conversa já tem as instruções do papel; manda só a mensagem.
+    const text = resume ? task : composeTaskPrompt(cfg, task);
+    const r = await bridge.agent.start(nodeId, agentStartParams(cfg, text, resume));
     setDetail(r.detail);
+    if (r.ok) setPrompt('');
   };
   const cancel = async (): Promise<void> => {
     await bridge.agent.cancel(nodeId);
@@ -47,7 +49,7 @@ export function AgentNode(props: NodeProps): JSX.Element {
         <span className={`dot ${visual.activity}`} /> {title}
         <select
           className="nodrag"
-          value={roleId}
+          value={cfg.roleId}
           onChange={(e) => patch(nodeId, { role: e.target.value })}
           disabled={active}
           title="Papel do agente"
@@ -59,6 +61,7 @@ export function AgentNode(props: NodeProps): JSX.Element {
       <div className="body">
         <div className="muted">
           {slot ? `${activityLabel(visual.activity)}${visual.validated ? ' · validado' : ''} · ${visual.connectivity}` : 'sem sessão'}
+          {slot?.costUsd ? <span className="agent-cost" title="Gasto deste agente nesta sessão do app"> · {formatUsd(slot.costUsd)}</span> : null}
         </div>
         {pending.length > 0 ? (
           <div style={{ marginTop: 4 }}>
@@ -75,12 +78,23 @@ export function AgentNode(props: NodeProps): JSX.Element {
           <>
             <textarea
               className="nodrag"
+              aria-label={canContinue ? 'Mensagem para continuar a conversa' : 'Tarefa para o agente'}
               style={{ width: 220, height: 54 }}
-              placeholder="Tarefa para o agente…"
+              placeholder={canContinue ? 'Continue a conversa (ex.: agora corrija o teste que falhou)…' : 'Tarefa para o agente…'}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
             />
-            <button className="btn nodrag" onClick={() => void start()}>▶ Iniciar</button>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {canContinue ? (
+                <>
+                  <button className="btn nodrag" onClick={() => void run(true)} title="Envia para a mesma conversa (o agente lembra do que já fez)">↩ Continuar</button>
+                  <button className="btn nodrag" onClick={() => void run(false)} title="Começa uma conversa nova do zero">▶ Nova tarefa</button>
+                  <button className="btn mini nodrag" onClick={() => patch(nodeId, { sessionRef: '' })} title="Esquece a conversa anterior">Limpar conversa</button>
+                </>
+              ) : (
+                <button className="btn nodrag" onClick={() => void run(false)}>▶ Iniciar</button>
+              )}
+            </div>
           </>
         ) : (
           <button className="btn nodrag" onClick={() => void cancel()}>■ Cancelar</button>

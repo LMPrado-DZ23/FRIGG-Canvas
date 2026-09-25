@@ -27,4 +27,12 @@ describe('IPC runtime validation', () => {
     expect(validAgentParams({ prompt: 'x', model: '' })).toBe(true);
     expect(validAgentParams({ prompt: 'x', model: 'sonnet & calc' })).toBe(false);
   });
+
+  it('valida roteamento, retomada de sessão e orçamento', () => {
+    expect(validAgentParams({ prompt: 'x', routing: 'direct', resume: '3f1c2d9e-1b2a-4c3d-9e8f-0a1b2c3d4e5f', maxBudgetUsd: 2 })).toBe(true);
+    expect(validAgentParams({ prompt: 'x', routing: 'proxy' })).toBe(false);
+    expect(validAgentParams({ prompt: 'x', resume: 'abc & calc' })).toBe(false);
+    expect(validAgentParams({ prompt: 'x', maxBudgetUsd: 0 })).toBe(false);
+    expect(validAgentParams({ prompt: 'x', maxBudgetUsd: '2' })).toBe(false);
+  });
 });

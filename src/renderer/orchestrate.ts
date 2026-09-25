@@ -7,10 +7,18 @@
 import { useFrigg } from './store.js';
 import { bridge } from './bridge.js';
 import { roleById } from '../core/roles.js';
+import { budgetReached, formatUsd, totalCost } from '../core/agent-policy.js';
+import { agentConfig, agentStartParams } from './agent-config.js';
 import { readyNodes, upstreamsOf, hasCycle, isComplete, isStalled, type OrchestratorGraph } from '../core/orchestrator.js';
 
 const dispatched = new Set<string>();
 let workflowGeneration = 0;
+/** Gasto acumulado quando o fluxo atual começou: o limite vale por execução. */
+let runBaselineUsd = 0;
+
+function spentUsd(): number {
+  return totalCost(Object.values(useFrigg.getState().sessions).map((slot) => slot.costUsd));
+}
 
 export function resetWorkflow(): void {
   dispatched.clear();
@@ -65,17 +73,16 @@ export async function pumpWorkflow(): Promise<void> {
     s.setWorkflowRunning(false);
     return;
   }
+  if (stopIfOverBudget()) return;
   for (const id of readyNodes(g, sessionStates())) {
     if (!useFrigg.getState().workflowRunning || generation !== workflowGeneration) return;
     if (dispatched.has(id)) continue;
     dispatched.add(id);
+    if (stopIfOverBudget()) return;
     const node = s.nodes.find((n) => n.id === id);
-    const role = roleById(typeof node?.data['role'] === 'string' ? (node.data['role'] as string) : 'developer');
-    const harness = (typeof node?.data['harness'] === 'string' && node.data['harness']) ? (node.data['harness'] as string) : (role?.harness ?? 'claude');
-    const model = typeof node?.data['model'] === 'string' ? (node.data['model'] as string) : '';
-    const cwd = typeof node?.data['cwd'] === 'string' ? (node.data['cwd'] as string) : '';
     try {
-      const r = await bridge.agent.start(id, { prompt: composePrompt(id, g), harness, ...(model ? { model } : {}), ...(cwd ? { cwd } : {}) });
+      // Fluxos sempre começam conversas novas: o contexto vem das saídas anteriores.
+      const r = await bridge.agent.start(id, agentStartParams(agentConfig(node?.data), composePrompt(id, g)));
       if (!r.ok) {
         // não conseguiu iniciar: registra falha para não travar o fluxo
         useFrigg.getState().applyEvent(id, { type: 'turn.failed', turnId: 'start', error: r.detail });
@@ -88,6 +95,16 @@ export async function pumpWorkflow(): Promise<void> {
   // Reavalia após despachar: se completou ou travou, encerra o fluxo.
   const st = sessionStates();
   if (isComplete(g, st) || isStalled(g, st)) useFrigg.getState().setWorkflowRunning(false);
+}
+
+/** Para o fluxo (sem despachar mais agentes) quando o gasto da sessão atinge o teto. */
+function stopIfOverBudget(): boolean {
+  const s = useFrigg.getState();
+  const spent = spentUsd() - runBaselineUsd;
+  if (!budgetReached(spent, s.workflowBudgetUsd)) return false;
+  s.setWorkflowRunning(false);
+  s.setWorkflowNotice(`Fluxo parado: gasto de ${formatUsd(spent)} atingiu o limite de ${formatUsd(s.workflowBudgetUsd ?? 0)}.`);
+  return true;
 }
 
 function sessionStates(): Record<string, import('../core/turn-state.js').AgentSessionState> {
@@ -103,6 +120,8 @@ export function startWorkflow(): string | null {
   if (g.nodes.length === 0) return 'Adicione ao menos um agente.';
   if (hasCycle(g)) return 'Há um ciclo entre os agentes — remova a conexão que fecha o loop.';
   resetWorkflow();
+  runBaselineUsd = spentUsd();
+  useFrigg.getState().setWorkflowNotice(null);
   useFrigg.getState().setWorkflowRunning(true);
   void pumpWorkflow().catch((error: unknown) => {
     useFrigg.getState().setWorkflowRunning(false);

@@ -4,6 +4,8 @@ import { deriveVisual, activityLabel } from '../core/session-model.js';
 import { initialSessionState } from '../core/turn-state.js';
 import { nodeTitle } from './node-label.js';
 import type { NodeKind } from '../core/workspace.js';
+import { formatUsd, totalCost } from '../core/agent-policy.js';
+import { BudgetInput } from './BudgetInput.js';
 
 const QUICK_ACTIONS: readonly { kind: NodeKind; icon: string; label: string; detail: string }[] = [
   { kind: 'agent', icon: '✦', label: 'Novo agente', detail: 'Delegue uma tarefa com contexto' },
@@ -25,6 +27,9 @@ export function Dashboard(): JSX.Element {
   const activeWorkspaceId = useFrigg((s) => s.activeWorkspaceId);
   const workspaces = useFrigg((s) => s.workspaces);
   const workspaceName = workspaces.find((w) => w.id === activeWorkspaceId)?.name ?? 'Workspace';
+  const workflowBudget = useFrigg((s) => s.workflowBudgetUsd);
+  const setWorkflowBudget = useFrigg((s) => s.setWorkflowBudget);
+  const spent = totalCost(Object.values(sessions).map((slot) => slot.costUsd));
 
   const agentNodes = nodes.filter((node) => node.kind === 'agent');
   const visuals = agentNodes.map((node) => deriveVisual(sessions[node.id]?.state ?? initialSessionState(), { lastEventAt: sessions[node.id]?.lastEventAt ?? null }));
@@ -49,6 +54,10 @@ export function Dashboard(): JSX.Element {
             />
             <button className="btn primary" onClick={() => setView('2d')}>Abrir canvas <span aria-hidden="true">→</span></button>
           </div>
+          <div className="budget-row">
+            <label htmlFor="workflow-budget">Limite de gasto por execução do fluxo (US$)</label>
+            <BudgetInput id="workflow-budget" value={workflowBudget} placeholder="sem limite" onChange={setWorkflowBudget} />
+          </div>
         </div>
         <div className="hero-orbit" aria-hidden="true"><span className="orbit-core">F</span><span className="orbit-ring ring-one" /><span className="orbit-ring ring-two" /></div>
       </section>
@@ -57,6 +66,7 @@ export function Dashboard(): JSX.Element {
         <Metric icon="◈" label="Agentes ativos" value={activeCount} tone="teal" hint={activeCount ? 'Em execução agora' : 'Prontos para começar'} />
         <Metric icon="✓" label="Concluídos" value={completedCount} tone="green" hint="Resultados validados" />
         <Metric icon="!" label="Precisam de atenção" value={attentionCount} tone={attentionCount ? 'amber' : 'slate'} hint={attentionCount ? 'Revise no modo Operação' : 'Tudo sob controle'} />
+        <Metric icon="$" label="Gasto nesta sessão" value={formatUsd(spent)} tone={workflowBudget !== undefined && spent >= workflowBudget ? 'amber' : 'slate'} hint={workflowBudget !== undefined ? `Limite por fluxo: ${formatUsd(workflowBudget)}` : 'Sem limite de fluxo'} />
         <Metric icon="⌁" label="Conectividade" value={health?.status === 'reachable' ? 'Online' : 'Local'} tone={health?.status === 'reachable' ? 'green' : 'slate'} hint={health?.detail ?? 'OmniRoute e PTY'} />
       </section>
 

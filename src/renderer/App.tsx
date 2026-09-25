@@ -6,6 +6,7 @@ import { SidePanel } from './SidePanel.js';
 import { Sidebar } from './Sidebar.js';
 import { OperationView } from './OperationView.js';
 import { healthLabel } from '../core/omniroute-client.js';
+import { formatUsd, totalCost } from '../core/agent-policy.js';
 import { startWorkflow, pumpWorkflow } from './orchestrate.js';
 import { NewTerminalModal } from './NewTerminalModal.js';
 import { Dashboard } from './Dashboard.js';
@@ -33,6 +34,8 @@ export function App(): JSX.Element {
   const workflowRunning = useFrigg((s) => s.workflowRunning);
   const setWorkflowRunning = useFrigg((s) => s.setWorkflowRunning);
   const [wfMsg, setWfMsg] = useState<string | null>(null);
+  const workflowNotice = useFrigg((s) => s.workflowNotice);
+  const spent = useFrigg((s) => totalCost(Object.values(s.sessions).map((slot) => slot.costUsd)));
   const [showNewTerminal, setShowNewTerminal] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
   const [appError, setAppError] = useState<string | null>(null);
@@ -73,18 +76,25 @@ export function App(): JSX.Element {
       void pumpWorkflow(); // reavalia o fluxo a cada transição real
     });
     const offOutput = bridge.agent.onOutput(({ id, text }) => setOutput(id, text));
-    const offCost = bridge.agent.onCost(({ id, usd }) => addCost(id, usd));
+    const offCost = bridge.agent.onCost(({ id, usd }) => {
+      addCost(id, usd);
+      void pumpWorkflow(); // reavalia o orçamento do fluxo
+    });
+    // Guarda a conversa no nó (persistida no workspace) para poder continuar depois.
+    const offSession = bridge.agent.onSession(({ id, ref }) => useFrigg.getState().patchNodeData(id, { sessionRef: ref }));
     return () => {
       clearInterval(t);
       offEvent();
       offOutput();
       offCost();
+      offSession();
     };
   }, [bootAttempt, loadLibrary, setHealth, setPty, applyEvent, setOutput, addCost]);
 
   const onOrchestrate = (): void => {
     if (workflowRunning) {
       setWorkflowRunning(false);
+      useFrigg.getState().setWorkflowNotice(null);
       setWfMsg('Fluxo pausado.');
       return;
     }
@@ -138,8 +148,9 @@ export function App(): JSX.Element {
         <button className="command-trigger" onClick={() => setShowPalette(true)} aria-label="Abrir command palette"><span>⌕</span> Buscar ações… <kbd>⌘K</kbd></button>
         <span className={`save-state ${saveState}`} aria-live="polite"><i />{saveState === 'saving' ? 'Salvando…' : saveState === 'error' ? 'Não salvo' : 'Salvo'}</span>
         <span className={`status-pill topbar-status ${healthClass}`}><i />{healthLabel(hp)}</span>
+        <span className="status-pill topbar-cost" title="Gasto informado pelos agentes desde que o FRIGG foi aberto">{formatUsd(spent)}</span>
         <button className={`btn run-button ${workflowRunning ? 'active' : ''}`} onClick={onOrchestrate}>{workflowRunning ? '■ Parar' : '▶ Executar'}</button>
-        {wfMsg ? <span className="workflow-toast" aria-live="polite">{wfMsg}</span> : null}
+        {workflowNotice ?? wfMsg ? <span className="workflow-toast" aria-live="polite">{workflowNotice ?? wfMsg}</span> : null}
       </header>
       {appError ? (
         <div className="app-alert" role="alert">

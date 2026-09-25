@@ -4,6 +4,7 @@ import { newWorkspaceId } from '../core/workspace.js';
 import { initialSessionState, reduce, type AgentSessionState, type SessionEvent } from '../core/turn-state.js';
 import type { HealthResult } from '../core/omniroute-client.js';
 import { roleById } from '../core/roles.js';
+import { validBudgetUsd } from '../core/agent-policy.js';
 
 export type ViewMode = 'home' | '2d' | '3d' | 'op';
 
@@ -24,6 +25,23 @@ function loadTemplates(): AgentTemplate[] {
     /* ignore */
   }
   return [];
+}
+function loadWorkflowBudget(): number | undefined {
+  try {
+    const raw = localStorage.getItem('frigg:workflowBudgetUsd');
+    const n = raw === null ? Number.NaN : Number(raw);
+    return validBudgetUsd(n) ? n : undefined;
+  } catch {
+    return undefined;
+  }
+}
+function persistWorkflowBudget(v: number | undefined): void {
+  try {
+    if (v === undefined) localStorage.removeItem('frigg:workflowBudgetUsd');
+    else localStorage.setItem('frigg:workflowBudgetUsd', String(v));
+  } catch {
+    /* ignore */
+  }
 }
 function persistTemplates(t: AgentTemplate[]): void {
   try {
@@ -51,6 +69,10 @@ interface FriggState {
   recovered: boolean;
   objective: string;
   workflowRunning: boolean;
+  /** Teto de gasto (USD) de um fluxo; undefined = sem limite. */
+  workflowBudgetUsd: number | undefined;
+  /** Aviso do executor de fluxo para a barra superior (ex.: orçamento atingido). */
+  workflowNotice: string | null;
   agentTemplates: AgentTemplate[];
   workspaces: { id: string; name: string }[];
   activeWorkspaceId: string;
@@ -62,6 +84,8 @@ interface FriggState {
   setPty: (p: { available: boolean; detail: string }) => void;
   setObjective: (s: string) => void;
   setWorkflowRunning: (b: boolean) => void;
+  setWorkflowBudget: (usd: number | undefined) => void;
+  setWorkflowNotice: (msg: string | null) => void;
   loadLibrary: (lib: WorkspaceLibrary, recovered: boolean) => void;
   toLibrary: () => WorkspaceLibrary;
   switchWorkspace: (id: string) => void;
@@ -96,6 +120,8 @@ export const useFrigg = create<FriggState>((set, get) => ({
   recovered: false,
   objective: '',
   workflowRunning: false,
+  workflowBudgetUsd: loadWorkflowBudget(),
+  workflowNotice: null,
   agentTemplates: loadTemplates(),
   workspaces: [],
   activeWorkspaceId: '',
@@ -107,6 +133,11 @@ export const useFrigg = create<FriggState>((set, get) => ({
   setPty: (ptyAvailable) => set({ ptyAvailable }),
   setObjective: (objective) => set({ objective }),
   setWorkflowRunning: (workflowRunning) => set({ workflowRunning }),
+  setWorkflowBudget: (workflowBudgetUsd) => {
+    persistWorkflowBudget(workflowBudgetUsd);
+    set({ workflowBudgetUsd });
+  },
+  setWorkflowNotice: (workflowNotice) => set({ workflowNotice }),
 
   loadLibrary: (lib, recovered) =>
     set(() => {

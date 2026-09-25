@@ -30,6 +30,7 @@ import { startCodexSession } from './adapters/codex-adapter.js';
 import type { ManagedSession } from './adapters/types.js';
 import { isExecutablePath, isSafeBrowserUrl, isSafeOmniRouteUrl, isTrustedRendererUrl, isValidTerminalSize } from '../core/security.js';
 import { isCliAvailable } from './cli-availability.js';
+import { parseRoutingMode, resolveRouting } from '../core/agent-policy.js';
 import { boundedString, validAgentParams, validId } from './ipc-validation.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -197,7 +198,7 @@ function registerIpc(): void {
   });
 
   // Agentes gerenciados (harness real): Claude Code e Codex.
-  ipcMain.handle('agent:start', async (event, id: string, params: { prompt: string; harness?: string; model?: string; cwd?: string }) => {
+  ipcMain.handle('agent:start', async (event, id: string, params: unknown) => {
     assertTrustedIpc(event);
     if (!validId(id)) return { ok: false, detail: 'id inválido' };
     if (!validAgentParams(params))
@@ -225,16 +226,33 @@ function registerIpc(): void {
       },
       onCost: (usd: number) => send('agent:cost', { id, usd }),
       onOutput: (text: string) => send('agent:output', { id, text }),
+      onSession: (ref: string) => send('agent:session', { id, ref }),
     };
+    let route = '';
     if (harness === 'claude') {
-      handle = startClaudeSession({ cwd, prompt: params.prompt, ...(params.model ? { model: params.model } : {}), baseUrl: OMNIROUTE_BASE_URL }, cb);
+      const mode = parseRoutingMode(params.routing);
+      const decision = resolveRouting(mode, mode === 'auto' ? (await omni.probeHealth()).status : 'unknown');
+      route = ` · ${decision.label}`;
+      handle = startClaudeSession({
+        cwd,
+        prompt: params.prompt,
+        ...(params.model ? { model: params.model } : {}),
+        ...(decision.useOmniRoute ? { baseUrl: OMNIROUTE_BASE_URL } : {}),
+        ...(params.resume ? { resumeSessionId: params.resume } : {}),
+        ...(params.maxBudgetUsd !== undefined ? { maxBudgetUsd: params.maxBudgetUsd } : {}),
+      }, cb);
     } else {
-      handle = startCodexSession({ cwd, prompt: params.prompt, ...(params.model ? { model: params.model } : {}) }, cb);
+      handle = startCodexSession({
+        cwd,
+        prompt: params.prompt,
+        ...(params.model ? { model: params.model } : {}),
+        ...(params.resume ? { resumeThreadId: params.resume } : {}),
+      }, cb);
     }
     if (!endedBeforeRegistration) agents.set(id, handle);
     return endedBeforeRegistration
       ? { ok: false, detail: `não foi possível iniciar (${harness})` }
-      : { ok: true, detail: `iniciado (${harness})` };
+      : { ok: true, detail: `${params.resume ? 'continuando' : 'iniciado'} (${harness}${route})` };
     } catch (error) {
       log(`agent:start falhou id=${id}: ${String(error)}`);
       return { ok: false, detail: `falha ao iniciar agente: ${String(error)}` };

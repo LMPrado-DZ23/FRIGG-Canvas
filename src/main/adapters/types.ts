@@ -12,4 +12,6 @@ export interface AgentCallbacks {
   onCost?: (usd: number) => void;
   /** Texto final do agente (para encadear a saída de A na entrada de B). */
   onOutput?: (text: string) => void;
+  /** Referência para continuar a conversa depois (session_id do Claude, threadId do Codex). */
+  onSession?: (ref: string) => void;
 }

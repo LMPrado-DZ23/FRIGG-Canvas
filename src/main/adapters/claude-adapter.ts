@@ -19,6 +19,10 @@ export interface StartAgentParams {
   readonly model?: string;
   /** base URL do OmniRoute para rotear a inferência (quando validado). */
   readonly baseUrl?: string;
+  /** session_id de uma conversa anterior: continua a mesma conversa (--resume). */
+  readonly resumeSessionId?: string;
+  /** Teto de gasto (USD) do turno, aplicado pelo próprio Claude Code. */
+  readonly maxBudgetUsd?: number;
 }
 
 /**
@@ -26,9 +30,11 @@ export interface StartAgentParams {
  * por stdin, para que nenhum texto livre passe por cmd.exe no Windows (onde a
  * CLI npm é um wrapper `.cmd`) e para não esbarrar no limite de argv.
  */
-export function buildClaudeArgs(params: Pick<StartAgentParams, 'model'>): string[] {
+export function buildClaudeArgs(params: Pick<StartAgentParams, 'model' | 'resumeSessionId' | 'maxBudgetUsd'>): string[] {
   const args = ['-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'default'];
   if (params.model) args.push('--model', params.model);
+  if (params.resumeSessionId) args.push('--resume', params.resumeSessionId);
+  if (params.maxBudgetUsd !== undefined) args.push('--max-budget-usd', String(params.maxBudgetUsd));
   return args;
 }
 
@@ -59,10 +65,15 @@ export function startClaudeSession(params: StartAgentParams, cb: AgentCallbacks)
 
   let sawResult = false;
   let terminalEmitted = false;
+  let sessionReported: string | null = null;
   let buf = '';
   const handleLine = (line: string): void => {
     const msg = parseStreamLine(line);
     if (!msg) return;
+    if (typeof msg.session_id === 'string' && msg.session_id && msg.session_id !== sessionReported) {
+      sessionReported = msg.session_id;
+      cb.onSession?.(msg.session_id);
+    }
     if (msg.type === 'result') {
       sawResult = true;
       const usd = costFromResult(msg);

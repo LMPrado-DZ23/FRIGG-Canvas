@@ -65,6 +65,16 @@ describe('Claude adapter integration contract', () => {
     expect(cost).toBe(0.25);
   });
 
+  it('reporta o session_id uma vez para permitir continuar a conversa', () => {
+    const child = new FakeChild();
+    spawn.mockReturnValue(child);
+    const sessions: string[] = [];
+    startClaudeSession({ cwd: '/tmp', prompt: 'x' }, { onEvent: () => {}, onSession: (ref) => sessions.push(ref) });
+    child.stdout.emit('data', '{"type":"system","subtype":"init","session_id":"s1"}\n{"type":"assistant","session_id":"s1"}\n');
+    child.stdout.emit('data', '{"type":"result","subtype":"success","result":"ok","session_id":"s1"}\n');
+    expect(sessions).toEqual(['s1']);
+  });
+
   it('falha de forma explícita quando a CLI não está no PATH', () => {
     planSpawn.mockReturnValue(null);
     const events: string[] = [];

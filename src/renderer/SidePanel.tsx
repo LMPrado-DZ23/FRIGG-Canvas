@@ -2,6 +2,9 @@ import { useFrigg } from './store.js';
 import { bridge } from './bridge.js';
 import { ROLES, roleById } from '../core/roles.js';
 import { nodeTitle } from './node-label.js';
+import { ROUTING_MODES } from '../core/agent-policy.js';
+import { agentConfig } from './agent-config.js';
+import { BudgetInput } from './BudgetInput.js';
 
 function WorkDirField({ nodeId }: { nodeId: string }): JSX.Element {
   const node = useFrigg((s) => s.nodes.find((n) => n.id === nodeId));
@@ -53,6 +56,7 @@ function AgentEditor({ nodeId }: { nodeId: string }): JSX.Element {
   const harness = typeof node.data['harness'] === 'string' ? (node.data['harness'] as string) : (role?.harness ?? 'claude');
   const model = typeof node.data['model'] === 'string' ? (node.data['model'] as string) : '';
   const effectivePrompt = custom || role?.systemPrompt || '';
+  const cfg = agentConfig(node.data);
 
   return (
     <div className="agent-editor">
@@ -92,6 +96,34 @@ function AgentEditor({ nodeId }: { nodeId: string }): JSX.Element {
 
       <label htmlFor={`${nodeId}-model`}>Modelo (opcional)</label>
       <input id={`${nodeId}-model`} className="fld" value={model} placeholder="ex.: sonnet, gpt-5.6…" onChange={(e) => patch(nodeId, { model: e.target.value })} />
+
+      {harness === 'claude' ? (
+        <>
+          <label htmlFor={`${nodeId}-routing`}>Rota da inferência</label>
+          <select id={`${nodeId}-routing`} className="fld" value={cfg.routing} onChange={(e) => patch(nodeId, { routing: e.target.value })}>
+            {ROUTING_MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+          </select>
+          <div className="muted" style={{ fontSize: 12 }}>{ROUTING_MODES.find((m) => m.id === cfg.routing)?.hint}</div>
+
+          <label htmlFor={`${nodeId}-budget`}>Limite de gasto por execução (US$)</label>
+          <BudgetInput
+            id={`${nodeId}-budget`}
+            value={cfg.maxBudgetUsd}
+            placeholder="sem limite"
+            onChange={(v) => patch(nodeId, { maxBudgetUsd: v })}
+          />
+          <div className="muted" style={{ fontSize: 12 }}>O Claude Code interrompe a execução ao atingir o valor (a checagem é entre chamadas ao modelo, então o gasto final pode passar um pouco).</div>
+        </>
+      ) : (
+        <div className="muted" style={{ fontSize: 12 }}>O Codex usa a configuração da própria CLI (~/.codex/config.toml) e não informa custo.</div>
+      )}
+
+      {cfg.sessionRef ? (
+        <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+          Conversa salva — use “Continuar” no nó para dar sequência.{' '}
+          <button className="btn mini" onClick={() => patch(nodeId, { sessionRef: '' })}>Esquecer conversa</button>
+        </div>
+      ) : null}
 
       <WorkDirField nodeId={nodeId} />
 

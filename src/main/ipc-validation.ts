@@ -1,3 +1,5 @@
+import { validBudgetUsd, validSessionRef, type RoutingMode } from '../core/agent-policy.js';
+
 export function boundedString(value: unknown, max: number, nonEmpty = false): value is string {
   return typeof value === 'string' && value.length <= max && (!nonEmpty || value.length > 0);
 }
@@ -15,11 +17,24 @@ export function validModelName(value: unknown): value is string {
   return typeof value === 'string' && /^[A-Za-z0-9._:/@[\]-]{1,256}$/.test(value);
 }
 
-export function validAgentParams(value: unknown): value is { prompt: string; harness?: string; model?: string; cwd?: string } {
+export interface AgentStartIpcParams {
+  prompt: string;
+  harness?: string;
+  model?: string;
+  cwd?: string;
+  routing?: RoutingMode;
+  resume?: string;
+  maxBudgetUsd?: number;
+}
+
+export function validAgentParams(value: unknown): value is AgentStartIpcParams {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const p = value as Record<string, unknown>;
   return boundedString(p['prompt'], 100_000, true)
     && optionalBoundedString(p['harness'], 64)
     && (p['model'] === undefined || p['model'] === '' || validModelName(p['model']))
-    && optionalBoundedString(p['cwd'], 32_768);
+    && optionalBoundedString(p['cwd'], 32_768)
+    && (p['routing'] === undefined || p['routing'] === 'auto' || p['routing'] === 'omniroute' || p['routing'] === 'direct')
+    && (p['resume'] === undefined || validSessionRef(p['resume']))
+    && (p['maxBudgetUsd'] === undefined || validBudgetUsd(p['maxBudgetUsd']));
 }

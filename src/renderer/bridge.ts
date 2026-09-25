@@ -85,5 +85,8 @@ export const bridge: FriggApi = real ?? {
     onOutput() {
       return () => {};
     },
+    onSession() {
+      return () => {};
+    },
   },
 };

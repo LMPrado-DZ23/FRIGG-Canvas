@@ -19,11 +19,20 @@ export interface AgentOutput {
   readonly id: string;
   readonly text: string;
 }
+export interface AgentSession {
+  readonly id: string;
+  readonly ref: string;
+}
 export interface AgentStartParams {
   readonly prompt: string;
   readonly harness?: string;
   readonly model?: string;
   readonly cwd?: string;
+  readonly routing?: 'auto' | 'omniroute' | 'direct';
+  /** Continua a conversa anterior (session_id do Claude / threadId do Codex). */
+  readonly resume?: string;
+  /** Teto de gasto por execução (Claude). */
+  readonly maxBudgetUsd?: number;
 }
 
 export interface PtyDataEvent {
@@ -57,9 +66,9 @@ export interface FriggApi {
     cancel(id: string): Promise<{ ok: boolean }>;
     approve(id: string, requestId: string, decision: 'approved' | 'denied'): Promise<{ ok: boolean }>;
     onEvent(cb: (e: AgentEvent) => void): () => void;
-    // (impl de approve adicionada abaixo)
     onCost(cb: (e: AgentCost) => void): () => void;
     onOutput(cb: (e: AgentOutput) => void): () => void;
+    onSession(cb: (e: AgentSession) => void): () => void;
   };
 }
 
@@ -116,6 +125,11 @@ const api: FriggApi = {
       const h = (_e: IpcRendererEvent, e: AgentOutput): void => cb(e);
       ipcRenderer.on('agent:output', h);
       return () => ipcRenderer.removeListener('agent:output', h);
+    },
+    onSession: (cb) => {
+      const h = (_e: IpcRendererEvent, e: AgentSession): void => cb(e);
+      ipcRenderer.on('agent:session', h);
+      return () => ipcRenderer.removeListener('agent:session', h);
     },
   },
 };
