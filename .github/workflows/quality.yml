@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   test:
-    name: Lint · Typecheck · Test · Build (Linux)
+    name: Lint · Typecheck · Test · Build · E2E (Linux)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -48,9 +48,19 @@ jobs:
           code=$?
           cat /tmp/frigg-electron-smoke.log
           if [ "$code" -ne 124 ]; then exit "$code"; fi
+      - name: E2E (Playwright + Electron)
+        run: xvfb-run -a npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-linux
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
 
   windows:
-    name: Test · Portable smoke (Windows)
+    name: Test · E2E · Portable smoke (Windows)
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -66,6 +76,16 @@ jobs:
         run: npm test
       - name: Package portable
         run: npm run package:portable
+      - name: E2E (Playwright + Electron)
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-windows
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
       - name: Smoke test FRIGG.exe
         shell: pwsh
         run: |

@@ -7,7 +7,7 @@
  */
 import { app, BrowserWindow, ipcMain, Menu, dialog, shell, session, type WebContents, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join } from 'node:path';
 import { appendFileSync, existsSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
@@ -38,6 +38,9 @@ const configuredOmniRoute = process.env['FRIGG_OMNIROUTE_URL'] ?? 'http://localh
 const OMNIROUTE_BASE_URL = isSafeOmniRouteUrl(configuredOmniRoute) ? configuredOmniRoute : 'http://localhost:20128';
 if (configuredOmniRoute !== OMNIROUTE_BASE_URL) log('FRIGG_OMNIROUTE_URL inválida; usando endpoint local padrão');
 const DEV_URL = process.env['FRIGG_DEV_URL'];
+// Testes E2E isolam o workspace/perfil numa pasta temporária (só caminho absoluto).
+const USER_DATA_OVERRIDE = process.env['FRIGG_USER_DATA'];
+if (USER_DATA_OVERRIDE && isAbsolute(USER_DATA_OVERRIDE)) app.setPath('userData', USER_DATA_OVERRIDE);
 const PACKAGED_RENDERER_URL = pathToFileURL(join(__dirname, '../renderer/index.html')).href;
 
 const omni = new OmniRouteClient({
