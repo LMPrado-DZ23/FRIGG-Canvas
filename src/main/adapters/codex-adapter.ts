@@ -14,7 +14,29 @@ export interface StartCodexParams {
   readonly cwd: string;
   readonly prompt: string;
   readonly model?: string;
+  /** threadId de uma conversa anterior: continua a mesma thread (thread/resume). */
+  readonly resumeThreadId?: string;
   readonly requestTimeoutMs?: number;
+}
+
+/** Valores do protocolo do app-server (schema v2): kebab-case em thread/*, camelCase no SandboxPolicy do turno. */
+export function codexThreadParams(params: Pick<StartCodexParams, 'cwd' | 'model' | 'resumeThreadId'>): Record<string, unknown> {
+  return {
+    ...(params.resumeThreadId ? { threadId: params.resumeThreadId } : {}),
+    cwd: params.cwd,
+    ...(params.model ? { model: params.model } : {}),
+    approvalPolicy: 'on-request',
+    sandbox: 'workspace-write',
+  };
+}
+
+export function codexTurnParams(threadId: string, prompt: string, model?: string): Record<string, unknown> {
+  return {
+    threadId,
+    input: [{ type: 'text', text: prompt }],
+    ...(model ? { model } : {}),
+    sandboxPolicy: { type: 'workspaceWrite', networkAccess: true },
+  };
 }
 
 interface RpcMsg {
@@ -75,11 +97,20 @@ export function startCodexSession(params: StartCodexParams, cb: AgentCallbacks):
     for (const timer of pending.values()) clearTimeout(timer);
     pending.clear();
   };
+  // FRIGG inicia um app-server por turno: ao fim (sucesso OU falha) o processo
+  // é encerrado para não ficar órfão; o close subsequente emite process.exited.
+  let shutdownScheduled = false;
+  const shutdownSoon = (): void => {
+    if (shutdownScheduled) return;
+    shutdownScheduled = true;
+    setTimeout(() => killProcessTree(child), 250);
+  };
   const fail = (message: string): void => {
     if (failed || sawTerminal) return;
     failed = true;
     clearPending();
     emit({ type: 'turn.failed', turnId: turnId ?? 'codex', error: message });
+    shutdownSoon();
   };
   const send = (msg: RpcMsg, expectsResponse = false): void => {
     try {
@@ -113,24 +144,17 @@ export function startCodexSession(params: StartCodexParams, cb: AgentCallbacks):
       }
       if (msg.id === 0 && msg.result) {
         send({ method: 'initialized', params: {} });
-        send({
-          method: 'thread/start',
-          id: 1,
-          params: {
-            cwd: params.cwd,
-            ...(params.model ? { model: params.model } : {}),
-            approvalPolicy: 'onRequest',
-            sandboxPolicy: { type: 'workspaceWrite', networkAccess: true },
-          },
-        }, true);
+        const method = params.resumeThreadId ? 'thread/resume' : 'thread/start';
+        send({ method, id: 1, params: codexThreadParams(params) }, true);
       } else if (msg.id === 1 && msg.result) {
         const thread = msg.result['thread'] as { id?: unknown } | undefined;
         if (typeof thread?.id !== 'string' || thread.id.length === 0) {
-          fail('thread/start não retornou thread.id');
+          fail(`${params.resumeThreadId ? 'thread/resume' : 'thread/start'} não retornou thread.id`);
           return;
         }
         threadId = thread.id;
-        send({ method: 'turn/start', id: 2, params: { threadId, input: [{ type: 'text', text: params.prompt }], ...(params.model ? { model: params.model } : {}) } }, true);
+        cb.onSession?.(threadId);
+        send({ method: 'turn/start', id: 2, params: codexTurnParams(threadId, params.prompt, params.model) }, true);
       } else if (msg.id === 2 && msg.result && !turnId) {
         const turn = msg.result['turn'] as { id?: unknown } | undefined;
         if (typeof turn?.id === 'string') turnId = turn.id;
@@ -156,17 +180,13 @@ export function startCodexSession(params: StartCodexParams, cb: AgentCallbacks):
           if (output.length > 0) cb.onOutput?.(output);
           emit({ type: 'result.validated' });
           emit({ type: 'turn.completed', turnId: resolvedTurnId });
-          // FRIGG inicia um app-server por turno; não manter um processo órfão
-          // depois do resultado final. O close subsequente emite process.exited.
-          setTimeout(() => {
-            killProcessTree(child);
-          }, 250);
         } else if (status === 'interrupted') {
           if (cancelRequested) emit({ type: 'cancel.confirmed' });
           else emit({ type: 'turn.failed', turnId: resolvedTurnId, error: 'interrompido' });
         } else {
           emit({ type: 'turn.failed', turnId: resolvedTurnId, error: turn?.error?.message ?? status });
         }
+        shutdownSoon();
         break;
       }
       case 'item/commandExecution/requestApproval':
