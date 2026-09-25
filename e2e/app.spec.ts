@@ -73,6 +73,24 @@ test('navega entre Canvas e Operação sem erros de página', async () => {
   expect(pageErrors).toEqual([]);
 });
 
+test('terminal real (PTY + xterm) executa um comando e mostra a saída', async () => {
+  await page.getByRole('button', { name: 'Início', exact: true }).click();
+  await page.locator('button.quick-card', { hasText: 'Novo terminal' }).click();
+  const term = page.locator('.node .xterm').last();
+  await expect(term).toBeVisible();
+  // Espera o shell subir (o prompt aparece nas linhas do xterm).
+  await expect.poll(async () => (await term.locator('.xterm-rows').innerText()).trim().length, { timeout: 20_000 }).toBeGreaterThan(0);
+  await term.locator('.xterm-helper-textarea').focus();
+  await page.keyboard.type('echo frigg-e2e-$((20+22))ok');
+  await page.keyboard.press('Enter');
+  // bash/zsh expandem $((20+22)); no PowerShell a linha ecoa literal. Ambos provam I/O real.
+  await expect(term.locator('.xterm-rows')).toContainText(/frigg-e2e-(42ok|\$\(\(20\+22\)\)ok)/, { timeout: 20_000 });
+  expect(pageErrors).toEqual([]);
+  // O terminal recém-criado fica selecionado: remove pelo painel lateral (o PTY é encerrado).
+  await page.locator('.side').getByRole('button', { name: 'Remover nó' }).click();
+  await expect(page.locator('.node .xterm')).toHaveCount(0);
+});
+
 test('abre o escritório 3D (three/R3F carregados sob demanda) sem erros', async () => {
   await page.getByRole('button', { name: 'Abrir command palette' }).click();
   await page.getByRole('dialog').getByText('Abrir escritório 3D').click();
