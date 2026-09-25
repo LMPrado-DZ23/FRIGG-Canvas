@@ -52,3 +52,20 @@ export function isTrustedRendererUrl(candidate: string, devOrigin?: string, pack
     return false;
   }
 }
+
+// Extensões que o SO executa em vez de abrir para leitura (shell.openPath roda o arquivo).
+const EXECUTABLE_EXTENSIONS = new Set([
+  'exe', 'com', 'bat', 'cmd', 'ps1', 'psm1', 'vbs', 'vbe', 'js', 'jse', 'wsf', 'wsh', 'msi', 'msp', 'scr',
+  'pif', 'lnk', 'url', 'hta', 'cpl', 'jar', 'reg', 'inf', 'scf', 'appref-ms', 'application', 'gadget',
+  'sh', 'command', 'app', 'desktop', 'run', 'bin', 'appimage',
+]);
+
+/** true quando abrir o caminho com o app padrão do SO executaria código. */
+export function isExecutablePath(path: string): boolean {
+  const name = path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ?? '';
+  // Windows ignora pontos/espaços finais ("x.exe." abre como x.exe).
+  const trimmed = name.replace(/[. ]+$/, '');
+  const dot = trimmed.lastIndexOf('.');
+  if (dot < 0) return false;
+  return EXECUTABLE_EXTENSIONS.has(trimmed.slice(dot + 1).toLowerCase());
+}

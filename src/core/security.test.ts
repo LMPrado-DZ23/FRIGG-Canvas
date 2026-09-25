@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSafeBrowserUrl, isSafeOmniRouteUrl, isTrustedRendererUrl, isValidTerminalSize, normalizeBrowserInput } from './security.js';
+import { isExecutablePath, isSafeBrowserUrl, isSafeOmniRouteUrl, isTrustedRendererUrl, isValidTerminalSize, normalizeBrowserInput } from './security.js';
 
 describe('fronteira de confiança do renderer', () => {
   it('aceita apenas o renderer empacotado e a origem de desenvolvimento configurada', () => {
@@ -42,5 +42,19 @@ describe('endpoint OmniRoute', () => {
     expect(isSafeOmniRouteUrl('https://omni.example/v1')).toBe(true);
     expect(isSafeOmniRouteUrl('http://10.0.0.1:20128')).toBe(false);
     expect(isSafeOmniRouteUrl('https://user:secret@omni.example')).toBe(false);
+  });
+});
+
+describe('isExecutablePath', () => {
+  it('bloqueia executáveis e scripts que o SO rodaria ao abrir', () => {
+    for (const p of ['C:\\x\\setup.exe', 'C:\\x\\run.BAT', '/home/u/install.sh', 'C:\\x\\evil.ps1', 'C:\\x\\a.lnk', 'C:\\x\\trick.exe.', 'C:\\x\\trick.cmd  ']) {
+      expect(isExecutablePath(p)).toBe(true);
+    }
+  });
+
+  it('permite documentos, imagens e pastas', () => {
+    for (const p of ['C:\\docs\\relatorio.pdf', '/home/u/foto.png', 'C:\\proj\\README.md', 'C:\\pasta.exe\\notas.txt', 'C:\\proj', '/home/u/.bashrc']) {
+      expect(isExecutablePath(p)).toBe(false);
+    }
   });
 });
