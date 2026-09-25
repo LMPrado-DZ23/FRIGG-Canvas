@@ -73,6 +73,14 @@ test('navega entre Canvas e Operação sem erros de página', async () => {
   expect(pageErrors).toEqual([]);
 });
 
+test('abre o escritório 3D (three/R3F carregados sob demanda) sem erros', async () => {
+  await page.getByRole('button', { name: 'Abrir command palette' }).click();
+  await page.getByRole('dialog').getByText('Abrir escritório 3D').click();
+  await expect(page.locator('.stage canvas')).toBeVisible({ timeout: 20_000 });
+  expect(pageErrors).toEqual([]);
+  await page.getByRole('button', { name: 'Canvas', exact: true }).click();
+});
+
 test('persiste o workspace e restaura após reiniciar', async () => {
   // Aguarda o autosave (debounce de 600 ms) gravar o agente criado.
   await expect(page.locator('.save-state')).toHaveText('Salvo', { timeout: 10_000 });
