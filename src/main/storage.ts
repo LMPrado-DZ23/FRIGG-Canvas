@@ -4,7 +4,7 @@
  * (v1, doc único) para o novo (v2, biblioteca) via parseLibrary.
  */
 import { readFileSync, writeFileSync, existsSync, renameSync } from 'node:fs';
-import { parseLibrary, parseLibraryForSave, emptyLibrary, type WorkspaceLibrary } from '../core/workspace.js';
+import { tryParseLibrary, parseLibraryForSave, emptyLibrary, type WorkspaceLibrary } from '../core/workspace.js';
 
 export interface LoadResult {
   readonly library: WorkspaceLibrary;
@@ -19,9 +19,12 @@ export class JsonFileStore {
     if (!existsSync(this.path)) return { library: emptyLibrary(), recovered: false };
     try {
       const raw = readFileSync(this.path, 'utf8');
-      const library = parseLibrary(JSON.parse(raw)); // aceita v1 (migra) e v2
+      const library = tryParseLibrary(JSON.parse(raw)); // aceita v1 (migra) e v2
+      if (!library) throw new Error('workspace irrecuperável');
       return { library, recovered: true };
     } catch {
+      // JSON inválido OU estrutura irrecuperável: preserva o original antes que o
+      // autosave o sobrescreva com uma biblioteca vazia.
       try {
         renameSync(this.path, `${this.path}.corrupt-${Date.now()}`);
       } catch {

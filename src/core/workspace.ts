@@ -100,6 +100,14 @@ export function emptyLibrary(): WorkspaceLibrary {
  * Nunca lança: em caso irrecuperável, retorna biblioteca vazia.
  */
 export function parseLibrary(v: unknown): WorkspaceLibrary {
+  return tryParseLibrary(v) ?? emptyLibrary();
+}
+
+/**
+ * Como parseLibrary, mas retorna null quando o conteúdo é irrecuperável, para o
+ * chamador preservar o original em vez de sobrescrevê-lo com uma biblioteca vazia.
+ */
+export function tryParseLibrary(v: unknown): WorkspaceLibrary | null {
   try {
     if (isObj(v) && v['version'] === 2 && Array.isArray(v['workspaces'])) {
       const entries: WorkspaceEntry[] = [];
@@ -109,7 +117,7 @@ export function parseLibrary(v: unknown): WorkspaceLibrary {
         const id = typeof raw['id'] === 'string' && raw['id'] ? (raw['id'] as string) : newWorkspaceId();
         entries.push({ id, name: doc.name, nodes: doc.nodes, edges: doc.edges });
       }
-      if (entries.length === 0) return emptyLibrary();
+      if (entries.length === 0) return null;
       const activeId =
         typeof v['activeId'] === 'string' && entries.some((e) => e.id === v['activeId'])
           ? (v['activeId'] as string)
@@ -121,7 +129,7 @@ export function parseLibrary(v: unknown): WorkspaceLibrary {
     const id = newWorkspaceId();
     return { version: 2, activeId: id, workspaces: [{ id, name: doc.name || 'Workspace 1', nodes: doc.nodes, edges: doc.edges }] };
   } catch {
-    return emptyLibrary();
+    return null;
   }
 }
 
