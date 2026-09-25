@@ -11,6 +11,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { parseStreamLine, claudeMsgToEvents, costFromResult } from '../../core/claude-stream.js';
 import type { ManagedSession, AgentCallbacks } from './types.js';
 import { buildAgentEnv } from './agent-env.js';
+import { killProcessTree, planSpawn } from '../resolve-command.js';
 
 export interface StartAgentParams {
   readonly cwd: string;
@@ -20,8 +21,13 @@ export interface StartAgentParams {
   readonly baseUrl?: string;
 }
 
-export function buildClaudeArgs(params: Pick<StartAgentParams, 'prompt' | 'model'>): string[] {
-  const args = ['-p', params.prompt, '--output-format', 'stream-json', '--verbose', '--permission-mode', 'default'];
+/**
+ * Argumentos fixos do `claude -p`. O prompt NÃO entra na linha de comando: vai
+ * por stdin, para que nenhum texto livre passe por cmd.exe no Windows (onde a
+ * CLI npm é um wrapper `.cmd`) e para não esbarrar no limite de argv.
+ */
+export function buildClaudeArgs(params: Pick<StartAgentParams, 'model'>): string[] {
+  const args = ['-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'default'];
   if (params.model) args.push('--model', params.model);
   return args;
 }
@@ -33,15 +39,23 @@ export function startClaudeSession(params: StartAgentParams, cb: AgentCallbacks)
   // Rotear pelo OmniRoute (endpoint compatível). Só efetivo se a rota estiver ok.
   if (params.baseUrl) env['ANTHROPIC_BASE_URL'] = params.baseUrl;
 
+  const plan = planSpawn('claude', args, { env });
+  if (!plan) {
+    cb.onEvent({ type: 'turn.failed', turnId: 'claude', error: 'CLI claude não encontrada no PATH ou modelo inválido' });
+    return { cancel: () => {} };
+  }
+
   let child: ChildProcessWithoutNullStreams;
   try {
-    child = spawn('claude', args, { cwd: params.cwd, env, shell: false });
+    child = spawn(plan.file, plan.args, { cwd: params.cwd, env, shell: plan.shell, windowsHide: true });
   } catch (err) {
     cb.onEvent({ type: 'turn.failed', turnId: 'claude', error: `spawn falhou: ${String(err)}` });
     return { cancel: () => {} };
   }
 
   cb.onEvent({ type: 'process.started' });
+  child.stdin.on('error', () => { /* processo pode ter saído antes de ler o prompt */ });
+  child.stdin.end(params.prompt, 'utf8');
 
   let sawResult = false;
   let terminalEmitted = false;
@@ -102,18 +116,8 @@ export function startClaudeSession(params: StartAgentParams, cb: AgentCallbacks)
 
   return {
     cancel: () => {
-      try {
-        child.kill('SIGINT');
-        setTimeout(() => {
-          try {
-            child.kill('SIGTERM');
-          } catch {
-            /* ignore */
-          }
-        }, 2000);
-      } catch {
-        /* ignore */
-      }
+      killProcessTree(child, 'SIGINT');
+      setTimeout(() => killProcessTree(child, 'SIGTERM'), 2000);
     },
   };
 }

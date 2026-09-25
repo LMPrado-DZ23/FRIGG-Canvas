@@ -1,8 +1,10 @@
 import { spawn } from 'node:child_process';
+import { planSpawn } from './resolve-command.js';
 
-/** Verifica uma CLI sem shell e sem instalar ou modificar a máquina. */
+/** Verifica uma CLI sem shell arbitrário e sem instalar ou modificar a máquina. */
 export function isCliAvailable(command: string, timeoutMs = 5_000): Promise<boolean> {
-  if (!/^[a-zA-Z0-9_.-]+$/.test(command)) return Promise.resolve(false);
+  const plan = planSpawn(command, ['--version']);
+  if (!plan) return Promise.resolve(false);
   return new Promise((resolve) => {
     let settled = false;
     const finish = (available: boolean): void => {
@@ -13,7 +15,7 @@ export function isCliAvailable(command: string, timeoutMs = 5_000): Promise<bool
     };
     let child;
     try {
-      child = spawn(command, ['--version'], { shell: false, windowsHide: true, stdio: 'ignore' });
+      child = spawn(plan.file, plan.args, { shell: plan.shell, windowsHide: true, stdio: 'ignore' });
     } catch {
       resolve(false);
       return;

@@ -8,6 +8,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import type { SessionEvent } from '../../core/turn-state.js';
 import type { ManagedSession, AgentCallbacks } from './types.js';
 import { buildAgentEnv } from './agent-env.js';
+import { killProcessTree, planSpawn } from '../resolve-command.js';
 
 export interface StartCodexParams {
   readonly cwd: string;
@@ -42,9 +43,15 @@ export function parseCodexLine(line: string): RpcMsg | null {
 }
 
 export function startCodexSession(params: StartCodexParams, cb: AgentCallbacks): ManagedSession {
+  const env = buildAgentEnv();
+  const plan = planSpawn('codex', ['app-server'], { env });
+  if (!plan) {
+    cb.onEvent({ type: 'turn.failed', turnId: 'codex', error: 'CLI codex não encontrada no PATH' });
+    return { cancel: () => {} };
+  }
   let child: ChildProcessWithoutNullStreams;
   try {
-    child = spawn('codex', ['app-server'], { cwd: params.cwd, env: buildAgentEnv(), shell: false });
+    child = spawn(plan.file, plan.args, { cwd: params.cwd, env, shell: plan.shell, windowsHide: true });
   } catch (err) {
     cb.onEvent({ type: 'turn.failed', turnId: 'codex', error: `spawn falhou: ${String(err)}` });
     return { cancel: () => {} };
@@ -81,7 +88,7 @@ export function startCodexSession(params: StartCodexParams, cb: AgentCallbacks):
         const timer = setTimeout(() => {
           pending.delete(msg.id!);
           fail(`timeout aguardando resposta RPC ${String(msg.id)}`);
-          try { child.kill(); } catch { /* processo pode ter saído */ }
+          killProcessTree(child);
         }, timeoutMs);
         pending.set(msg.id, timer);
       }
@@ -152,7 +159,7 @@ export function startCodexSession(params: StartCodexParams, cb: AgentCallbacks):
           // FRIGG inicia um app-server por turno; não manter um processo órfão
           // depois do resultado final. O close subsequente emite process.exited.
           setTimeout(() => {
-            try { child.kill(); } catch { /* processo pode ter encerrado */ }
+            killProcessTree(child);
           }, 250);
         } else if (status === 'interrupted') {
           if (cancelRequested) emit({ type: 'cancel.confirmed' });
@@ -225,7 +232,7 @@ export function startCodexSession(params: StartCodexParams, cb: AgentCallbacks):
       emit({ type: 'cancel.requested' });
       if (threadId && turnId) send({ method: 'turn/interrupt', id: nextId++, params: { threadId, turnId } });
       setTimeout(() => {
-        try { child.kill(); } catch { /* ignore */ }
+        killProcessTree(child);
       }, 3000);
     },
     approve: (requestId, decision) => {

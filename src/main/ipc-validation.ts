@@ -10,11 +10,16 @@ export function optionalBoundedString(value: unknown, max: number): value is str
   return value === undefined || boundedString(value, max);
 }
 
+/** Nome de modelo: token simples (ex.: sonnet, claude-sonnet-4-5, openai/gpt-5, sonnet[1m]). */
+export function validModelName(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9._:/@[\]-]{1,256}$/.test(value);
+}
+
 export function validAgentParams(value: unknown): value is { prompt: string; harness?: string; model?: string; cwd?: string } {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const p = value as Record<string, unknown>;
   return boundedString(p['prompt'], 100_000, true)
     && optionalBoundedString(p['harness'], 64)
-    && optionalBoundedString(p['model'], 256)
+    && (p['model'] === undefined || p['model'] === '' || validModelName(p['model']))
     && optionalBoundedString(p['cwd'], 32_768);
 }

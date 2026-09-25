@@ -10,6 +10,8 @@ class FakeChild extends EventEmitter {
   readonly stderr = new FakeStream();
   readonly stdin = { write: (line: string) => this.receive(JSON.parse(line) as { id?: number; method?: string }) };
   killed = false;
+  exitCode: number | null = null;
+  signalCode: string | null = null;
 
   private receive(msg: { id?: number; method?: string }): void {
     queueMicrotask(() => {
@@ -32,6 +34,11 @@ class FakeChild extends EventEmitter {
 
 const spawn = vi.hoisted(() => vi.fn());
 vi.mock('node:child_process', () => ({ spawn }));
+vi.mock('../resolve-command.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../resolve-command.js')>()),
+  planSpawn: (file: string, args: string[]) => ({ file, args, shell: false }),
+  killProcessTree: (child: { kill: () => void }) => child.kill(),
+}));
 
 const { startCodexSession } = await import('./codex-adapter.js');
 
