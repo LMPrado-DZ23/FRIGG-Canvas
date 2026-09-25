@@ -14,6 +14,19 @@ O nó de navegador aceita páginas HTTP/HTTPS, nega esquemas privilegiados e blo
 
 Prompts, arquivos do workspace, páginas visitadas e saídas de ferramentas são conteúdo não confiável. Não cole tokens ou credenciais em prompts. O FRIGG não deve registrar prompts completos, tokens ou saídas sensíveis em logs.
 
+### Execução das CLIs gerenciadas (Claude/Codex)
+
+- O executável é resolvido pelo `PATH` (com `PATHEXT` no Windows), ignorando entradas relativas do `PATH`.
+- No Windows, CLIs instaladas via npm são wrappers `.cmd`, que só rodam via `cmd.exe`. Nesse caso a linha de comando contém **apenas tokens fixos ou validados** (`[A-Za-z0-9._:/@=[\]-]`) e o caminho do `.cmd` é recusado se tiver metacaracteres do `cmd.exe` (`% ! ^ " & | < >`).
+- O prompt nunca vai na linha de comando: o Claude recebe o prompt por stdin; o Codex recebe via JSON-RPC.
+- O nome do modelo é validado no IPC com a mesma classe de caracteres.
+- Cancelamento encerra a árvore de processos (`taskkill /T` no Windows) e não sinaliza processos já encerrados.
+
+## Arquivos
+
+- `file:open` recusa executáveis e scripts (`.exe`, `.bat`, `.cmd`, `.ps1`, `.lnk`, `.js`, `.msi`, `.sh`, …), pois abrir com o app padrão do SO os executaria.
+- `workspace.json` é gravado de forma atômica (`.tmp` + rename). Se o arquivo estiver corrompido **ou** tiver estrutura irrecuperável, ele é preservado como `workspace.json.corrupt-<timestamp>` antes de qualquer autosave.
+
 ## Reporte
 
 Para reportar uma vulnerabilidade, abra uma issue privada ou entre em contato com o mantenedor antes de publicar detalhes exploráveis.
