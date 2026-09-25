@@ -34,6 +34,13 @@ describe('mapeamento claude -> SessionEvent', () => {
     expect(fail[0]!.type).toBe('turn.failed');
   });
 
+  it('teto de gasto e outros error_* nunca contam como sucesso', () => {
+    // Formato real observado no Claude Code 2.1: subtype error_max_budget_usd, is_error pode vir ausente.
+    expect(claudeMsgToEvents({ type: 'result', subtype: 'error_max_budget_usd', session_id: 's1' }))
+      .toEqual([{ type: 'turn.failed', turnId: 's1', error: 'limite de gasto (US$) atingido — execução interrompida' }]);
+    expect(claudeMsgToEvents({ type: 'result', subtype: 'error_max_turns' })[0]!.type).toBe('turn.failed');
+  });
+
   it('fluxo completo alimenta a máquina de estados até completed', () => {
     const msgs = [
       { type: 'system', subtype: 'init', session_id: 's1' },

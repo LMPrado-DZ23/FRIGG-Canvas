@@ -48,7 +48,10 @@ export function claudeMsgToEvents(msg: ClaudeMsg): SessionEvent[] {
     return [{ type: 'turn.started', turnId }];
   }
   if (msg.type === 'result') {
-    if (msg.is_error === true || msg.subtype === 'error') {
+    if (msg.subtype === 'error_max_budget_usd') {
+      return [{ type: 'turn.failed', turnId, error: 'limite de gasto (US$) atingido — execução interrompida' }];
+    }
+    if (msg.is_error === true || msg.subtype === 'error' || msg.subtype?.startsWith('error_')) {
       return [{ type: 'turn.failed', turnId, error: msg.result ?? msg.subtype ?? 'erro' }];
     }
     // O resultado de sucesso do harness é a validação operacional do turno.
