@@ -1,10 +1,49 @@
-import { useMemo, type JSX } from 'react';
+import { useEffect, useMemo, type JSX } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Text } from '@react-three/drei';
+import { OrbitControls, Grid } from '@react-three/drei';
+import { CanvasTexture, SRGBColorSpace } from 'three';
+
+/**
+ * Rótulo como sprite com textura desenhada em <canvas> 2D (fontes do sistema,
+ * emoji incluído). Substitui o <Text> do drei: o troika usa workers com
+ * importScripts(blob:) e baixa fontes de um CDN — ambos bloqueados pela CSP —,
+ * o que deixava o escritório 3D preso em "Carregando…".
+ */
+function Label({ text, position, size = 0.22, color = '#dce6f5' }: { text: string; position: [number, number, number]; size?: number; color?: string }): JSX.Element {
+  const { texture, aspect } = useMemo(() => {
+    const px = 64;
+    const font = `600 ${px}px system-ui, "Segoe UI", "Segoe UI Emoji", sans-serif`;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const width = Math.max(1, Math.ceil((ctx ? (ctx.font = font, ctx.measureText(text).width) : text.length * px * 0.6) + px * 0.5));
+    canvas.width = width;
+    canvas.height = Math.ceil(px * 1.4);
+    if (ctx) {
+      ctx.font = font;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,.8)';
+      ctx.shadowBlur = 6;
+      ctx.fillStyle = color;
+      ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    }
+    const tex = new CanvasTexture(canvas);
+    tex.colorSpace = SRGBColorSpace;
+    return { texture: tex, aspect: canvas.width / canvas.height };
+  }, [text, color]);
+  useEffect(() => () => texture.dispose(), [texture]);
+  const h = size * 1.4;
+  return (
+    <sprite position={position} scale={[h * aspect, h, 1]}>
+      <spriteMaterial map={texture} transparent depthWrite={false} />
+    </sprite>
+  );
+}
 import { useFrigg } from '../store.js';
 import { deriveVisual, type Activity } from '../../core/session-model.js';
 import { initialSessionState } from '../../core/turn-state.js';
 import type { WorkspaceNode } from '../../core/workspace.js';
+import { nodeTitle } from '../node-label.js';
 
 /**
  * Escritório 3D (D02–D06): mesma sessão do canvas, câmera isométrica ortográfica,
@@ -29,7 +68,7 @@ function Station({ node, x, z }: { node: WorkspaceNode; x: number; z: number }):
   const activity = deriveVisual(slot?.state ?? initialSessionState(), {
     lastEventAt: slot?.lastEventAt ?? null,
   }).activity;
-  const title = String(node.data['title'] ?? node.kind);
+  const title = nodeTitle(node);
 
   return (
     <group position={[x, 0, z]} onClick={(e) => { e.stopPropagation(); select(node.id); }}>
@@ -48,9 +87,7 @@ function Station({ node, x, z }: { node: WorkspaceNode; x: number; z: number }):
         <capsuleGeometry args={[0.18, 0.4, 4, 8]} />
         <meshStandardMaterial color={COLOR[activity]} />
       </mesh>
-      <Text position={[0, 1.35, 0]} fontSize={0.22} color="#dce6f5" anchorX="center">
-        {title}
-      </Text>
+      <Label text={title} position={[0, 1.35, 0]} />
     </group>
   );
 }
@@ -78,9 +115,7 @@ export function Office3D(): JSX.Element {
         return <Station key={n.id} node={n} x={gx} z={gz} />;
       })}
       {stations.length === 0 ? (
-        <Text position={[0, 1, 0]} fontSize={0.5} color="#8aa0c0" anchorX="center">
-          Adicione um Agente ou Terminal
-        </Text>
+        <Label text="Adicione um Agente ou Terminal" position={[0, 1, 0]} size={0.5} color="#8aa0c0" />
       ) : null}
       <OrbitControls
         makeDefault
