@@ -4,29 +4,42 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: Lint · Typecheck · Test · Build (Linux)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npm audit --audit-level=moderate
+      - name: Install
+        run: npm ci
+      - name: Dependency audit
+        run: npm audit --audit-level=moderate
       - name: Secret scan
         shell: bash
         run: |
-          ! git grep -n -I -E 'BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,}' -- ':!package-lock.json' ':!.env.example'
-      - run: npm run lint
-      - run: npm test
-      - run: npm run typecheck
-      - run: npm run build
+          ! git grep -n -I -E 'BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,}|sk-ant-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9]{32,}' -- ':!package-lock.json' ':!.env.example'
+      - name: Lint
+        run: npm run lint -- --max-warnings=0
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
       - name: Electron smoke (Linux)
         shell: bash
         run: |
@@ -36,16 +49,23 @@ jobs:
           cat /tmp/frigg-electron-smoke.log
           if [ "$code" -ne 124 ]; then exit "$code"; fi
 
-  windows-portable-smoke:
+  windows:
+    name: Test · Portable smoke (Windows)
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npm run package:portable
+      - name: Install
+        run: npm ci
+      # Resolução de CLIs (.cmd/PATHEXT) e kill de árvore são específicos do Windows.
+      - name: Test
+        run: npm test
+      - name: Package portable
+        run: npm run package:portable
       - name: Smoke test FRIGG.exe
         shell: pwsh
         run: |
