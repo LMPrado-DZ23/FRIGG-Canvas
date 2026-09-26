@@ -76,8 +76,12 @@ jobs:
         run: npm test
       - name: Package portable
         run: npm run package:portable
-      - name: E2E (Playwright + Electron)
-        run: npm run test:e2e
+      # Roda a suíte contra o FRIGG.exe portátil (pega bugs de empacotamento, ex.: preload quebrado).
+      - name: E2E against portable FRIGG.exe
+        shell: pwsh
+        run: |
+          $env:FRIGG_E2E_EXECUTABLE = (Resolve-Path "release/FRIGG-win/FRIGG.exe").Path
+          npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

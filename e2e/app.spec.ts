@@ -9,10 +9,16 @@ let userData: string;
 const pageErrors: string[] = [];
 
 async function launch(): Promise<void> {
+  // FRIGG_E2E_EXECUTABLE aponta para um app empacotado (ex.: release/win-unpacked/FRIGG.exe).
+  const packaged = process.env['FRIGG_E2E_EXECUTABLE'];
+  const sandboxArgs = process.platform === 'linux' ? ['--no-sandbox'] : [];
   app = await electron.launch({
-    args: [join(process.cwd(), 'dist', 'main', 'main.cjs'), ...(process.platform === 'linux' ? ['--no-sandbox'] : [])],
+    ...(packaged
+      ? { executablePath: packaged, args: sandboxArgs }
+      : { args: [join(process.cwd(), 'dist', 'main', 'main.cjs'), ...sandboxArgs] }),
     env: {
       ...process.env,
+      FRIGG_DISABLE_UPDATES: '1',
       FRIGG_USER_DATA: userData,
       // Endpoint local sem serviço: o app deve mostrar OmniRoute indisponível, nunca saudável.
       FRIGG_OMNIROUTE_URL: 'http://127.0.0.1:9',
