@@ -46,16 +46,14 @@ jobs:
         run: |
           $env:FRIGG_E2E_EXECUTABLE = (Resolve-Path "release/win-unpacked/FRIGG.exe").Path
           npm run test:e2e
-      - name: Publish release (installer + latest.yml)
-        run: npx electron-builder --win nsis --publish always --prepackaged release/win-unpacked
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Release notes from CHANGELOG.md
+      # Um único `gh release create` com notas + os 3 arquivos: o upload paralelo do
+      # electron-builder criava Releases duplicadas para a mesma tag (condição de corrida).
+      - name: Publish release (installer + latest.yml + blockmap, notes from CHANGELOG)
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version="${GITHUB_REF_NAME#v}"
-          # Seção "## [versão]" até a próxima "## [".
           awk -v h="## [$version]" 'index($0, h) == 1 {on=1; next} on && index($0, "## [") == 1 {exit} on {print}' CHANGELOG.md > notes.md
-          if [ -s notes.md ]; then gh release edit "$GITHUB_REF_NAME" --notes-file notes.md; else echo "sem seção $version no CHANGELOG"; fi
+          [ -s notes.md ] || echo "FRIGG $version" > notes.md
+          gh release create "$GITHUB_REF_NAME" --verify-tag --latest --title "$version" --notes-file notes.md             "release/FRIGG-Setup-$version.exe" "release/FRIGG-Setup-$version.exe.blockmap" release/latest.yml

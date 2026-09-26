@@ -5,6 +5,13 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # typescript-eslint 8.x suporta TypeScript < 6.1; o TS 7 deixaria o lint sem cobertura.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      # @types/node acompanha o Node do Electron (44 → Node 24), não o Node mais novo.
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
     groups:
       # Patches e minors juntos num PR só; majors ficam separados para revisão.
       minor-and-patch:
