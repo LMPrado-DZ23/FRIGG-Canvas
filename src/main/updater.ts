@@ -8,6 +8,7 @@
  */
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import type { AppUpdater } from 'electron-updater';
 
 export interface UpdaterEnv {
   readonly isPackaged: boolean;
@@ -24,13 +25,31 @@ export function shouldCheckForUpdates(env: UpdaterEnv): boolean {
 
 const SIX_HOURS = 6 * 60 * 60 * 1000;
 
+/**
+ * No bundle CJS do main, `import('electron-updater')` vira um wrapper ESM do
+ * `require`: o `autoUpdater` (um getter no module.exports) só aparece em
+ * `default`. Aceita as duas formas — antes o updater falhava sempre com
+ * "Cannot set properties of undefined (setting 'autoDownload')".
+ */
+export function resolveAutoUpdater<T>(mod: { autoUpdater?: T; default?: { autoUpdater?: T } }): T | undefined {
+  return mod.autoUpdater ?? mod.default?.autoUpdater;
+}
+
 export async function startAutoUpdates(env: UpdaterEnv, log: (msg: string) => void): Promise<void> {
   if (!shouldCheckForUpdates(env)) return;
   try {
-    const { autoUpdater } = await import('electron-updater');
+    const mod = (await import('electron-updater')) as { autoUpdater?: AppUpdater; default?: { autoUpdater?: AppUpdater } };
+    const autoUpdater = resolveAutoUpdater(mod);
+    if (!autoUpdater) {
+      log('updater indisponível: módulo electron-updater sem autoUpdater');
+      return;
+    }
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
-    autoUpdater.on('error', (e) => log(`updater erro: ${e instanceof Error ? e.message : String(e)}`));
+    autoUpdater.on('checking-for-update', () => log('updater: verificando atualizações'));
+    autoUpdater.on('update-not-available', (info) => log(`updater: já na versão mais recente (${info.version})`));
+    autoUpdater.on('update-available', (info) => log(`updater: versão ${info.version} disponível; baixando`));
+    autoUpdater.on('error', (e) => log(`updater erro: ${e instanceof Error ? e.message.split('\n')[0] : String(e)}`));
     autoUpdater.on('update-downloaded', (info) => log(`updater: versão ${info.version} baixada; instala ao sair`));
     let inFlight = false;
     const check = (): void => {
