@@ -20,24 +20,29 @@ App desktop de **canvas + orquestração de agentes de IA** sobre o **OmniRoute*
   interromper o fluxo.
 - **Terminais de CLI de IA**: catálogo espelhando o OmniRoute — Code (26), Agent (10),
   Externas compatíveis (10).
+- **Rota da inferência por agente**: *Automático* (OmniRoute quando online, senão direto
+  no provedor), *Sempre OmniRoute* ou *Direto*.
+- **Controle de custo**: limite de gasto por execução do agente (`--max-budget-usd`),
+  limite por execução do fluxo e gasto visível na barra superior, no Dashboard e em cada nó.
+- **Conversa contínua**: depois da 1ª tarefa, o nó oferece **↩ Continuar** (o agente lembra
+  do que fez — `--resume` no Claude, `thread/resume` no Codex).
 
 ## Status (honesto)
 
 | Componente | Estado | Evidência |
 |---|---|---|
-| Núcleo/adaptadores: turn-state, session-model, workspace, segurança, OmniRoute, Claude, Codex e IPC | ✅ testado | 70 testes Vitest + lint |
-| Typecheck strict | ✅ exit 0 | `npm run typecheck` |
-| Canvas 2D + nós + arestas + escritório 3D + Operação + Command Center | ✅ build OK | `npm run build:renderer` |
-| Orquestração (papéis + grafo + templates) | ✅ implementado; motor testado | idem + testes |
-| Adaptadores Claude (stream-json) e Codex (App Server) | 🟡 execução ao vivo requer CLI logada; aprovações interativas estão disponíveis no Codex | parser/argumentos testados |
-| Terminais PTY (node-pty pré-compilado) | 🟡 código pronto; binário nativo depende do ambiente | degrada p/ "indisponível" |
-| `.exe` (electron-builder) | 🟡 config pronta; build/assinatura fora deste sandbox | `npm run dist:win` |
+| Núcleo/adaptadores: turn-state, session-model, workspace, segurança, OmniRoute, Claude, Codex, IPC, updater | ✅ testado | 121 testes Vitest + lint sem warnings |
+| Typecheck strict (TS 6) | ✅ exit 0 | `npm run typecheck` |
+| App Electron ponta a ponta: ponte do preload, IPC, agente, limites de gasto, terminal PTY real, escritório 3D, persistência após reiniciar | ✅ testado | 8 testes Playwright + Electron (`npm run test:e2e`) no CI Linux e Windows |
+| Adaptadores Claude (stream-json) e Codex (App Server v2) | ✅ contrato testado; verificado com as CLIs reais (retomada e teto de gasto) | requer CLI logada |
+| Instalador NSIS + atualização automática (GitHub Releases) | ✅ `npm run dist:win`; publicação por tag `v*` | sem assinatura de código |
 
 ## Rodar (na sua máquina Windows)
 ```bash
 npm install
 npm test                 # testes unitários e de contrato
 npm run build            # main + renderer
+npm run test:e2e         # abre o app de verdade (Playwright + Electron); rode após o build
 npm start                # abre a janela (baixa o Electron na 1ª vez)
 ```
 
@@ -49,10 +54,18 @@ npm run package:portable   # gera release/FRIGG-win/FRIGG.exe (duplo clique)
 ```
 O workflow `Quality` monta o portátil em Windows, abre o `FRIGG.exe`, confirma que o processo permanece saudável e publica o diretório como artefato.
 
-**Instalador NSIS (`.exe` de setup):**
+**Instalador NSIS (`.exe` de setup, com atualização automática):**
 ```bash
-npm run dist:win           # gera release/ (NSIS)
+npm run dist:win           # gera release/FRIGG-Setup-<versão>.exe (não publica)
 ```
+A versão instalada verifica novas versões nas **GitHub Releases** ao abrir e a cada 6 h,
+baixa em segundo plano e instala ao fechar o app (notificação do Windows). O portátil não
+se atualiza. Para desligar: `FRIGG_DISABLE_UPDATES=1`.
+
+**Publicar uma versão:** ajuste `version` no `package.json`, faça commit e crie a tag
+igual (`git tag v0.1.0 && git push origin v0.1.0`). O workflow `Release` roda
+lint/typecheck/testes, gera o instalador e publica o `.exe` + `latest.yml` na Release
+— é desse feed que as instalações se atualizam.
 > Este exige um privilégio do Windows: o electron-builder extrai o `winCodeSign`
 > que contém symlinks de macOS, e o Windows bloqueia isso sem **Modo de
 > Desenvolvedor** (Configurações → Privacidade e segurança → Para desenvolvedores)
