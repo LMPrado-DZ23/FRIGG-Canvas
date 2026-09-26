@@ -3,7 +3,9 @@
 import { build } from 'esbuild';
 import { readFileSync, rmSync } from 'node:fs';
 
-const external = ['electron', '@lydell/node-pty', 'node-pty', 'better-sqlite3'];
+// electron-updater fica external: só é importado (dinamicamente) na versão instalada,
+// onde o electron-builder o inclui em node_modules; o portátil nunca o carrega.
+const external = ['electron', '@lydell/node-pty', 'node-pty', 'better-sqlite3', 'electron-updater'];
 
 rmSync('dist/main', { recursive: true, force: true });
 rmSync('dist/preload', { recursive: true, force: true });

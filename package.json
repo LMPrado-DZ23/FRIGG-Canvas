@@ -16,40 +16,42 @@
     "dev:renderer": "vite",
     "start": "electron .",
     "rebuild": "electron-rebuild -f -w @lydell/node-pty",
-    "dist:win": "npm run build && electron-builder --win nsis",
+    "dist:win": "npm run build && electron-builder --win nsis --publish never",
     "package:portable": "npm run build && node scripts/package-portable.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "release:win": "npm run build && electron-builder --win nsis --publish always"
   },
   "dependencies": {
     "@lydell/node-pty": "^1.2.0-beta.15",
-    "@react-three/drei": "^10.7.9",
-    "@react-three/fiber": "^9.8.1",
-    "@xterm/addon-fit": "^0.11.0",
-    "@xterm/xterm": "^6.0.0",
-    "@xyflow/react": "^12.3.5",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "three": "^0.186.1",
-    "zustand": "^5.0.1"
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.2.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.63.0",
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.1",
     "@types/node": "^22.10.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^6.1.1",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "@xyflow/react": "^12.3.5",
     "electron": "^44.4.3",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",
     "eslint": "^10.11.0",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "three": "^0.186.1",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.70.1",
     "vite": "^8.3.1",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.1",
+    "zustand": "^5.0.1"
   },
   "build": {
     "appId": "app.frigg.canvas",
@@ -61,14 +63,30 @@
       "dist/**/*",
       "package.json"
     ],
+    "asarUnpack": [
+      "node_modules/@lydell/**"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "LMPrado-DZ23",
+        "repo": "FRIGG-Canvas",
+        "releaseType": "release"
+      }
+    ],
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "artifactName": "FRIGG-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "FRIGG"
     }
   }
 }

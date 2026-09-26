@@ -30,6 +30,7 @@ import { startCodexSession } from './adapters/codex-adapter.js';
 import type { ManagedSession } from './adapters/types.js';
 import { isExecutablePath, isSafeBrowserUrl, isSafeOmniRouteUrl, isTrustedRendererUrl, isValidTerminalSize } from '../core/security.js';
 import { isCliAvailable } from './cli-availability.js';
+import { startAutoUpdates } from './updater.js';
 import { parseRoutingMode, resolveRouting } from '../core/agent-policy.js';
 import { boundedString, validAgentParams, validId } from './ipc-validation.js';
 
@@ -290,6 +291,11 @@ app.whenReady().then(() => {
   });
   registerIpc();
   createWindow();
+  void startAutoUpdates({
+    isPackaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+    disabled: process.env['FRIGG_DISABLE_UPDATES'] === '1',
+  }, log);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

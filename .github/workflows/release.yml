@@ -1,0 +1,52 @@
+name: Release
+
+# Publica o instalador Windows e o feed de atualização (latest.yml) numa GitHub
+# Release. Dispare criando uma tag igual à versão do package.json: v0.1.0 etc.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: Build & publish (Windows NSIS)
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Tag matches package.json version
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME não bate com package.json v$version"; exit 1
+          fi
+      - name: Lint
+        run: npm run lint -- --max-warnings=0
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+      - name: Build and package (no publish yet)
+        run: npm run dist:win
+      - name: E2E against the packaged app
+        shell: pwsh
+        run: |
+          $env:FRIGG_E2E_EXECUTABLE = (Resolve-Path "release/win-unpacked/FRIGG.exe").Path
+          npm run test:e2e
+      - name: Publish release (installer + latest.yml)
+        run: npx electron-builder --win nsis --publish always --prepackaged release/win-unpacked
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
