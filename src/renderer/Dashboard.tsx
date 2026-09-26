@@ -1,11 +1,11 @@
 import type { JSX } from 'react';
-import { useFrigg } from './store.js';
+import { spentUsd, useFrigg } from './store.js';
 import { TEAM_TEMPLATES } from './templates.js';
 import { deriveVisual, activityLabel } from '../core/session-model.js';
 import { initialSessionState } from '../core/turn-state.js';
 import { nodeTitle } from './node-label.js';
 import type { NodeKind } from '../core/workspace.js';
-import { formatUsd, totalCost } from '../core/agent-policy.js';
+import { formatUsd } from '../core/agent-policy.js';
 import { BudgetInput } from './BudgetInput.js';
 
 const QUICK_ACTIONS: readonly { kind: NodeKind; icon: string; label: string; detail: string }[] = [
@@ -30,7 +30,7 @@ export function Dashboard(): JSX.Element {
   const workspaceName = workspaces.find((w) => w.id === activeWorkspaceId)?.name ?? 'Workspace';
   const workflowBudget = useFrigg((s) => s.workflowBudgetUsd);
   const setWorkflowBudget = useFrigg((s) => s.setWorkflowBudget);
-  const spent = totalCost(Object.values(sessions).map((slot) => slot.costUsd));
+  const spent = useFrigg(spentUsd);
 
   const agentNodes = nodes.filter((node) => node.kind === 'agent');
   const visuals = agentNodes.map((node) => deriveVisual(sessions[node.id]?.state ?? initialSessionState(), { lastEventAt: sessions[node.id]?.lastEventAt ?? null }));
@@ -48,6 +48,7 @@ export function Dashboard(): JSX.Element {
           <div className="objective-composer">
             <span className="composer-icon">✦</span>
             <input
+              id="objective-input"
               aria-label="Objetivo do projeto"
               value={objective}
               onChange={(e) => setObjective(e.target.value)}

@@ -1,12 +1,12 @@
 import { useEffect, useState, lazy, Suspense, type JSX } from 'react';
-import { useFrigg } from './store.js';
+import { spentUsd, useFrigg } from './store.js';
 import { bridge } from './bridge.js';
 import { Canvas2D } from './canvas/Canvas2D.js';
 import { SidePanel } from './SidePanel.js';
 import { Sidebar } from './Sidebar.js';
 import { OperationView } from './OperationView.js';
 import { healthLabel } from '../core/omniroute-client.js';
-import { formatUsd, totalCost } from '../core/agent-policy.js';
+import { formatUsd } from '../core/agent-policy.js';
 import { startWorkflow, pumpWorkflow } from './orchestrate.js';
 import { NewTerminalModal } from './NewTerminalModal.js';
 import { Dashboard } from './Dashboard.js';
@@ -35,7 +35,7 @@ export function App(): JSX.Element {
   const setWorkflowRunning = useFrigg((s) => s.setWorkflowRunning);
   const [wfMsg, setWfMsg] = useState<string | null>(null);
   const workflowNotice = useFrigg((s) => s.workflowNotice);
-  const spent = useFrigg((s) => totalCost(Object.values(s.sessions).map((slot) => slot.costUsd)));
+  const spent = useFrigg(spentUsd);
   const [showNewTerminal, setShowNewTerminal] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
   const [appError, setAppError] = useState<string | null>(null);

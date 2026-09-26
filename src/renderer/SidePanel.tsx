@@ -6,6 +6,7 @@ import { nodeTitle } from './node-label.js';
 import { ROUTING_MODES } from '../core/agent-policy.js';
 import { agentConfig } from './agent-config.js';
 import { BudgetInput } from './BudgetInput.js';
+import { removeNodeSafely } from './node-actions.js';
 
 function WorkDirField({ nodeId }: { nodeId: string }): JSX.Element {
   const node = useFrigg((s) => s.nodes.find((n) => n.id === nodeId));
@@ -136,7 +137,6 @@ function AgentEditor({ nodeId }: { nodeId: string }): JSX.Element {
 export function SidePanel(): JSX.Element {
   const selectedId = useFrigg((s) => s.selectedId);
   const node = useFrigg((s) => s.nodes.find((n) => n.id === s.selectedId));
-  const remove = useFrigg((s) => s.removeNode);
   const recovered = useFrigg((s) => s.recovered);
 
   if (!node) {
@@ -156,7 +156,7 @@ export function SidePanel(): JSX.Element {
       {node.kind === 'agent' ? <AgentEditor nodeId={node.id} /> : null}
       {node.kind === 'terminal' ? <TerminalEditor nodeId={node.id} /> : null}
       {node.kind === 'browser' ? <p className="muted">URL: {String(node.data['url'] || '')}</p> : null}
-      <button className="btn" style={{ marginTop: 10 }} onClick={() => selectedId && remove(selectedId)}>Remover nó</button>
+      <button className="btn" style={{ marginTop: 10 }} onClick={() => selectedId && removeNodeSafely(selectedId)}>Remover nó</button>
     </div>
   );
 }

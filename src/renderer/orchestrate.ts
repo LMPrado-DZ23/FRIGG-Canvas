@@ -4,10 +4,10 @@
  *  papel (system-prompt) + objetivo do fluxo + saídas dos agentes anteriores.
  * Dispara via o adaptador (bridge.agent). O motor garante a ordem e as falhas.
  */
-import { useFrigg } from './store.js';
+import { spentUsd, useFrigg } from './store.js';
 import { bridge } from './bridge.js';
 import { roleById } from '../core/roles.js';
-import { budgetReached, formatUsd, totalCost } from '../core/agent-policy.js';
+import { budgetReached, formatUsd } from '../core/agent-policy.js';
 import { agentConfig, agentStartParams } from './agent-config.js';
 import { readyNodes, upstreamsOf, hasCycle, isComplete, isStalled, type OrchestratorGraph } from '../core/orchestrator.js';
 
@@ -16,8 +16,8 @@ let workflowGeneration = 0;
 /** Gasto acumulado quando o fluxo atual começou: o limite vale por execução. */
 let runBaselineUsd = 0;
 
-function spentUsd(): number {
-  return totalCost(Object.values(useFrigg.getState().sessions).map((slot) => slot.costUsd));
+function spent(): number {
+  return spentUsd(useFrigg.getState());
 }
 
 export function resetWorkflow(): void {
@@ -100,10 +100,10 @@ export async function pumpWorkflow(): Promise<void> {
 /** Para o fluxo (sem despachar mais agentes) quando o gasto da sessão atinge o teto. */
 function stopIfOverBudget(): boolean {
   const s = useFrigg.getState();
-  const spent = spentUsd() - runBaselineUsd;
-  if (!budgetReached(spent, s.workflowBudgetUsd)) return false;
+  const runSpent = spent() - runBaselineUsd;
+  if (!budgetReached(runSpent, s.workflowBudgetUsd)) return false;
   s.setWorkflowRunning(false);
-  s.setWorkflowNotice(`Fluxo parado: gasto de ${formatUsd(spent)} atingiu o limite de ${formatUsd(s.workflowBudgetUsd ?? 0)}.`);
+  s.setWorkflowNotice(`Fluxo parado: gasto de ${formatUsd(runSpent)} atingiu o limite de ${formatUsd(s.workflowBudgetUsd ?? 0)}.`);
   return true;
 }
 
@@ -120,7 +120,11 @@ export function startWorkflow(): string | null {
   if (g.nodes.length === 0) return 'Adicione ao menos um agente.';
   if (hasCycle(g)) return 'Há um ciclo entre os agentes — remova a conexão que fecha o loop.';
   resetWorkflow();
-  runBaselineUsd = spentUsd();
+  // Nova execução: sessões concluídas/falhas voltam ao início (senão um fluxo já
+  // terminado "conclui" na hora sem rodar nada). Agentes ativos ficam como estão.
+  const s = useFrigg.getState();
+  s.resetSessions(g.nodes.map((n) => n.id).filter((id) => !['running', 'awaiting_approval', 'cancelling'].includes(s.sessions[id]?.state.turn ?? 'idle')));
+  runBaselineUsd = spent();
   useFrigg.getState().setWorkflowNotice(null);
   useFrigg.getState().setWorkflowRunning(true);
   void pumpWorkflow().catch((error: unknown) => {

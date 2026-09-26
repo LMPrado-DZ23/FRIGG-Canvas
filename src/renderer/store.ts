@@ -4,7 +4,7 @@ import { newWorkspaceId } from '../core/workspace.js';
 import { initialSessionState, reduce, type AgentSessionState, type SessionEvent } from '../core/turn-state.js';
 import type { HealthResult } from '../core/omniroute-client.js';
 import { roleById } from '../core/roles.js';
-import { validBudgetUsd } from '../core/agent-policy.js';
+import { totalCost, validBudgetUsd } from '../core/agent-policy.js';
 
 export type ViewMode = 'home' | '2d' | '3d' | 'op';
 
@@ -66,6 +66,8 @@ interface FriggState {
   health: HealthResult | null;
   ptyAvailable: { available: boolean; detail: string } | null;
   sessions: Record<string, SessionSlot>;
+  /** Gasto de sessões de nós já removidos: remover um nó nunca "devolve" orçamento. */
+  retiredCostUsd: number;
   recovered: boolean;
   objective: string;
   workflowRunning: boolean;
@@ -99,12 +101,40 @@ interface FriggState {
   addEdge: (source: string, target: string) => void;
   addTemplate: (nodes: readonly { kind: NodeKind; data: Record<string, unknown>; dx: number; dy: number }[], chain: boolean) => void;
   applyEvent: (id: string, ev: SessionEvent, at?: number) => void;
+  /** Volta as sessões dos nós ao estado inicial (nova execução), preservando o custo. */
+  resetSessions: (ids: readonly string[]) => void;
   setOutput: (id: string, text: string) => void;
   addCost: (id: string, usd: number) => void;
   saveAgentTemplate: (nodeId: string) => void;
   addAgentFromTemplate: (templateId: string) => void;
   removeAgentTemplate: (templateId: string) => void;
 }
+
+/**
+ * Eventos/saída/custo chegam também de agentes de workspaces inativos (ex.: o
+ * cancelamento confirmado depois de trocar de workspace) — não podem ser descartados.
+ */
+function nodeExists(s: Pick<FriggState, 'nodes' | 'inactiveDocs'>, id: string): boolean {
+  return s.nodes.some((n) => n.id === id) || Object.values(s.inactiveDocs).some((doc) => doc.nodes.some((n) => n.id === id));
+}
+
+function retireSessions(sessions: Record<string, SessionSlot>, ids: readonly string[]): { sessions: Record<string, SessionSlot>; retired: number } {
+  const next = { ...sessions };
+  let retired = 0;
+  for (const id of ids) {
+    retired += next[id]?.costUsd ?? 0;
+    delete next[id];
+  }
+  return { sessions: next, retired };
+}
+
+/** Gasto total desde que o app abriu (inclui nós já removidos). */
+export function spentUsd(s: Pick<FriggState, 'sessions' | 'retiredCostUsd'>): number {
+  return totalCost(Object.values(s.sessions).map((slot) => slot.costUsd)) + s.retiredCostUsd;
+}
+
+/** Limite do formato salvo (parseLibraryForSave rejeita nomes maiores). */
+export const WORKSPACE_NAME_MAX = 200;
 
 let counter = 0;
 const newId = (k: string): string => `${k}-${Date.now().toString(36)}-${(counter++).toString(36)}`;
@@ -117,6 +147,7 @@ export const useFrigg = create<FriggState>((set, get) => ({
   health: null,
   ptyAvailable: null,
   sessions: {},
+  retiredCostUsd: 0,
   recovered: false,
   objective: '',
   workflowRunning: false,
@@ -159,11 +190,13 @@ export const useFrigg = create<FriggState>((set, get) => ({
 
   toLibrary: () => {
     const s = get();
-    const workspaces = s.workspaces.map((w) =>
-      w.id === s.activeWorkspaceId
-        ? { id: w.id, name: w.name, nodes: s.nodes, edges: s.edges }
-        : { id: w.id, name: w.name, ...(s.inactiveDocs[w.id] ?? { nodes: [], edges: [] }) },
-    );
+    // Nome vazio (usuário apagou tudo enquanto edita) não pode travar o autosave.
+    const workspaces = s.workspaces.map((w) => {
+      const name = w.name.trim().slice(0, WORKSPACE_NAME_MAX) || 'Projeto sem nome';
+      return w.id === s.activeWorkspaceId
+        ? { id: w.id, name, nodes: s.nodes, edges: s.edges }
+        : { id: w.id, name, ...(s.inactiveDocs[w.id] ?? { nodes: [], edges: [] }) };
+    });
     return { version: 2, activeId: s.activeWorkspaceId, workspaces };
   },
 
@@ -192,21 +225,24 @@ export const useFrigg = create<FriggState>((set, get) => ({
     }),
 
   renameWorkspace: (id, name) =>
-    set((s) => ({ workspaces: s.workspaces.map((w) => (w.id === id ? { ...w, name } : w)) })),
+    set((s) => ({ workspaces: s.workspaces.map((w) => (w.id === id ? { ...w, name: name.slice(0, WORKSPACE_NAME_MAX) } : w)) })),
 
   deleteWorkspace: (id) =>
     set((s) => {
       if (s.workspaces.length <= 1) return s;
       const remaining = s.workspaces.filter((w) => w.id !== id);
       const inactiveDocs = { ...s.inactiveDocs };
+      const doomed = id === s.activeWorkspaceId ? s.nodes : (inactiveDocs[id]?.nodes ?? []);
+      const { sessions, retired } = retireSessions(s.sessions, doomed.map((n) => n.id));
+      const retiredCostUsd = s.retiredCostUsd + retired;
       delete inactiveDocs[id];
       if (id === s.activeWorkspaceId) {
         const next = remaining[0]!;
         const doc = inactiveDocs[next.id] ?? { nodes: [], edges: [] };
         delete inactiveDocs[next.id];
-        return { workspaces: remaining, activeWorkspaceId: next.id, nodes: [...doc.nodes], edges: [...doc.edges], inactiveDocs, selectedId: null };
+        return { workspaces: remaining, activeWorkspaceId: next.id, nodes: [...doc.nodes], edges: [...doc.edges], inactiveDocs, selectedId: null, sessions, retiredCostUsd };
       }
-      return { workspaces: remaining, inactiveDocs };
+      return { workspaces: remaining, inactiveDocs, sessions, retiredCostUsd };
     }),
 
   addNode: (kind, at, data) => {
@@ -242,9 +278,9 @@ export const useFrigg = create<FriggState>((set, get) => ({
 
   removeNode: (id) =>
     set((s) => {
-      const sessions = { ...s.sessions };
-      delete sessions[id];
+      const { sessions, retired } = retireSessions(s.sessions, [id]);
       return {
+        retiredCostUsd: s.retiredCostUsd + retired,
         nodes: s.nodes.filter((n) => n.id !== id),
         edges: s.edges.filter((e) => e.source !== id && e.target !== id),
         sessions,
@@ -275,22 +311,32 @@ export const useFrigg = create<FriggState>((set, get) => ({
 
   applyEvent: (id, ev, at) =>
     set((s) => {
-      if (!s.nodes.some((node) => node.id === id)) return s;
+      if (!nodeExists(s, id)) return s;
       const prev = s.sessions[id]?.state ?? initialSessionState();
       const slot = s.sessions[id];
       return { sessions: { ...s.sessions, [id]: { ...slot, state: reduce(prev, ev), lastEventAt: at ?? Date.now() } } };
     }),
 
+  resetSessions: (ids) =>
+    set((s) => {
+      const sessions = { ...s.sessions };
+      for (const id of ids) {
+        const slot = sessions[id];
+        if (slot) sessions[id] = { state: initialSessionState(), lastEventAt: null, ...(slot.costUsd !== undefined ? { costUsd: slot.costUsd } : {}) };
+      }
+      return { sessions };
+    }),
+
   setOutput: (id, text) =>
     set((s) => {
-      if (!s.nodes.some((node) => node.id === id)) return s;
+      if (!nodeExists(s, id)) return s;
       const slot = s.sessions[id] ?? { state: initialSessionState(), lastEventAt: Date.now() };
       return { sessions: { ...s.sessions, [id]: { ...slot, output: text } } };
     }),
 
   addCost: (id, usd) =>
     set((s) => {
-      if (!s.nodes.some((node) => node.id === id)) return s;
+      if (!nodeExists(s, id)) return s;
       const slot = s.sessions[id] ?? { state: initialSessionState(), lastEventAt: Date.now() };
       return { sessions: { ...s.sessions, [id]: { ...slot, costUsd: (slot.costUsd ?? 0) + usd } } };
     }),
