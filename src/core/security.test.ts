@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isExecutablePath, isSafeBrowserUrl, isSafeOmniRouteUrl, isTrustedRendererUrl, isValidTerminalSize, normalizeBrowserInput } from './security.js';
+import { isExecutablePath, isRemoteOrDevicePath, isSafeBrowserUrl, isSafeOmniRouteUrl, isTrustedRendererUrl, isValidTerminalSize, normalizeBrowserInput } from './security.js';
 
 describe('fronteira de confiança do renderer', () => {
   it('aceita apenas o renderer empacotado e a origem de desenvolvimento configurada', () => {
@@ -53,8 +53,26 @@ describe('isExecutablePath', () => {
   });
 
   it('permite documentos, imagens e pastas', () => {
-    for (const p of ['C:\\docs\\relatorio.pdf', '/home/u/foto.png', 'C:\\proj\\README.md', 'C:\\pasta.exe\\notas.txt', 'C:\\proj', '/home/u/.bashrc']) {
+    for (const p of ['C:\\docs\\relatorio.pdf', '/home/u/foto.png', 'C:\\proj\\README.md', 'C:\\pasta.exe\\notas.txt', 'C:\\proj', '/home/u/.bashrc', 'C:\\d\\planilha.xlsx', 'C:\\d\\dados.csv']) {
       expect(isExecutablePath(p)).toBe(false);
     }
+  });
+
+  it('bloqueia também consoles, ajuda compilada, atalhos de configuração e scripts Python', () => {
+    for (const p of ['C:\\x\\a.msc', 'C:\\x\\h.chm', 'C:\\x\\s.settingcontent-ms', 'C:\\x\\l.library-ms', 'C:\\x\\d.diagcab', 'C:\\x\\run.py', 'C:\\x\\gui.pyw', 'C:\\x\\m.psd1']) {
+      expect(isExecutablePath(p)).toBe(true);
+    }
+  });
+});
+
+describe('isRemoteOrDevicePath', () => {
+  it('recusa UNC e caminhos de dispositivo (evita vazar hash NTLM via SMB)', () => {
+    for (const p of ['\\\\attacker\\share\\doc.pdf', '//attacker/share/doc.pdf', '\\\\?\\C:\\x.pdf', '\\\\.\\PhysicalDrive0', '  \\\\host\\x']) {
+      expect(isRemoteOrDevicePath(p)).toBe(true);
+    }
+  });
+
+  it('aceita caminhos locais', () => {
+    for (const p of ['C:\\docs\\a.pdf', '/home/u/a.pdf', 'D:/x/y.txt']) expect(isRemoteOrDevicePath(p)).toBe(false);
   });
 });

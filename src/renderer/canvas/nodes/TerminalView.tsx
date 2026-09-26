@@ -83,7 +83,8 @@ export function TerminalView({ id, command, cwd, install }: { id: string; comman
     <div className="term-wrap">
       {!approved ? (
         <div className="warn" role="alert">
-          Este terminal executará <code>{command?.trim() || 'um instalador configurado'}</code> no diretório escolhido.
+          Este terminal executará no diretório escolhido:
+          <code className="term-gate-cmd">{autoInstallCommandWith(command ?? '', install)}</code>
           <button className="btn mini nodrag" onClick={() => setApproved(true)}>Confirmar execução</button>
         </div>
       ) : null}

@@ -26,7 +26,7 @@ import { PtyHost, isPtyAvailable, ptyLoadError, ensurePtyLoaded } from './pty-ho
 import { startClaudeSession } from './adapters/claude-adapter.js';
 import { startCodexSession } from './adapters/codex-adapter.js';
 import type { ManagedSession } from './adapters/types.js';
-import { isExecutablePath, isSafeBrowserUrl, isSafeOmniRouteUrl, isTrustedRendererUrl, isValidTerminalSize } from '../core/security.js';
+import { isExecutablePath, isRemoteOrDevicePath, isSafeBrowserUrl, isSafeOmniRouteUrl, isTrustedRendererUrl, isValidTerminalSize } from '../core/security.js';
 import { isCliAvailable } from './cli-availability.js';
 import { startAutoUpdates } from './updater.js';
 import { parseRoutingMode, resolveRouting, type RoutingDecision } from '../core/agent-policy.js';
@@ -177,8 +177,10 @@ function registerIpc(): void {
   });
   ipcMain.handle('file:open', async (event, p: string) => {
     assertTrustedIpc(event);
-    if (typeof p !== 'string' || p.length === 0 || p.length > 32_768 || !existsSync(p))
-      return { ok: false, detail: 'arquivo inexistente ou caminho inválido' };
+    if (typeof p !== 'string' || p.length === 0 || p.length > 32_768) return { ok: false, detail: 'caminho inválido' };
+    // Antes de qualquer IO: existsSync num caminho UNC já conecta via SMB.
+    if (isRemoteOrDevicePath(p)) return { ok: false, detail: 'caminhos de rede não são abertos pelo FRIGG' };
+    if (!existsSync(p)) return { ok: false, detail: 'arquivo inexistente' };
     if (isExecutablePath(p)) return { ok: false, detail: 'por segurança, executáveis e scripts não são abertos pelo FRIGG' };
     const detail = await shell.openPath(p);
     return detail ? { ok: false, detail } : { ok: true };

@@ -58,7 +58,21 @@ const EXECUTABLE_EXTENSIONS = new Set([
   'exe', 'com', 'bat', 'cmd', 'ps1', 'psm1', 'vbs', 'vbe', 'js', 'jse', 'wsf', 'wsh', 'msi', 'msp', 'scr',
   'pif', 'lnk', 'url', 'hta', 'cpl', 'jar', 'reg', 'inf', 'scf', 'appref-ms', 'application', 'gadget',
   'sh', 'command', 'app', 'desktop', 'run', 'bin', 'appimage',
+  'msc', 'chm', 'ps1xml', 'ps2', 'ps2xml', 'psc1', 'psc2', 'psd1', 'mshxml', 'msh', 'msh1', 'msh2',
+  'settingcontent-ms', 'library-ms', 'search-ms', 'searchconnector-ms', 'diagcab', 'wsc', 'xbap',
+  'appx', 'appxbundle', 'msix', 'msixbundle', 'mst', 'jnlp', 'py', 'pyw', 'pyc', 'pyo', 'pyz', 'rb', 'pl',
+  'vb', 'ws', 'crt', 'der', 'website', 'mcf', 'xll', 'iqy', 'slk', 'theme', 'themepack',
 ]);
+
+/**
+ * Caminho de rede (UNC `\\host\share`, `//host/share`) ou de dispositivo
+ * (`\\?\`, `\\.\`). Só tocar nesses caminhos (até `existsSync`) já abre conexão
+ * SMB e pode vazar o hash NTLM do usuário para um host remoto — são recusados
+ * antes de qualquer IO.
+ */
+export function isRemoteOrDevicePath(path: string): boolean {
+  return /^[\\/]{2}/.test(path.trim());
+}
 
 /** true quando abrir o caminho com o app padrão do SO executaria código. */
 export function isExecutablePath(path: string): boolean {
