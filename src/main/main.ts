@@ -8,17 +8,15 @@
 import { app, BrowserWindow, ipcMain, Menu, dialog, shell, session, type WebContents, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, isAbsolute, join } from 'node:path';
-import { appendFileSync, existsSync, statSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, statSync } from 'node:fs';
+import { createFileLogger } from './logger.js';
 
-const LOG = join(tmpdir(), `frigg-main-${process.pid}.log`);
-function log(msg: string): void {
-  try {
-    appendFileSync(LOG, `[${new Date().toISOString()}] ${msg}\n`);
-  } catch {
-    /* ignore */
-  }
-}
+// Testes E2E isolam o workspace/perfil numa pasta temporária (só caminho absoluto).
+// Definido antes de qualquer log, que também vive em userData.
+const USER_DATA_OVERRIDE = process.env['FRIGG_USER_DATA'];
+if (USER_DATA_OVERRIDE && isAbsolute(USER_DATA_OVERRIDE)) app.setPath('userData', USER_DATA_OVERRIDE);
+// Log único e rotativo em <userData>/logs/main.log.
+const log = createFileLogger(join(app.getPath('userData'), 'logs'));
 process.on('uncaughtException', (e) => log(`uncaughtException: ${e instanceof Error ? e.stack ?? e.message : String(e)}`));
 process.on('unhandledRejection', (e) => log(`unhandledRejection: ${String(e)}`));
 import { OmniRouteClient } from '../core/omniroute-client.js';
@@ -31,7 +29,8 @@ import type { ManagedSession } from './adapters/types.js';
 import { isExecutablePath, isSafeBrowserUrl, isSafeOmniRouteUrl, isTrustedRendererUrl, isValidTerminalSize } from '../core/security.js';
 import { isCliAvailable } from './cli-availability.js';
 import { startAutoUpdates } from './updater.js';
-import { parseRoutingMode, resolveRouting } from '../core/agent-policy.js';
+import { parseRoutingMode, resolveRouting, type RoutingDecision } from '../core/agent-policy.js';
+import { AgentRegistry } from './agent-registry.js';
 import { boundedString, validAgentParams, validId } from './ipc-validation.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -39,9 +38,6 @@ const configuredOmniRoute = process.env['FRIGG_OMNIROUTE_URL'] ?? 'http://localh
 const OMNIROUTE_BASE_URL = isSafeOmniRouteUrl(configuredOmniRoute) ? configuredOmniRoute : 'http://localhost:20128';
 if (configuredOmniRoute !== OMNIROUTE_BASE_URL) log('FRIGG_OMNIROUTE_URL inválida; usando endpoint local padrão');
 const DEV_URL = process.env['FRIGG_DEV_URL'];
-// Testes E2E isolam o workspace/perfil numa pasta temporária (só caminho absoluto).
-const USER_DATA_OVERRIDE = process.env['FRIGG_USER_DATA'];
-if (USER_DATA_OVERRIDE && isAbsolute(USER_DATA_OVERRIDE)) app.setPath('userData', USER_DATA_OVERRIDE);
 const PACKAGED_RENDERER_URL = pathToFileURL(join(__dirname, '../renderer/index.html')).href;
 
 const omni = new OmniRouteClient({
@@ -55,8 +51,7 @@ const omni = new OmniRouteClient({
 let store: JsonFileStore;
 let pty: PtyHost;
 let mainWindow: BrowserWindow | null = null;
-const agents = new Map<string, ManagedSession>();
-const startingAgents = new Set<string>();
+const agents = new AgentRegistry();
 
 function send(channel: string, payload: unknown): void {
   const wc: WebContents | undefined = mainWindow?.webContents;
@@ -207,8 +202,8 @@ function registerIpc(): void {
     if (!validId(id)) return { ok: false, detail: 'id inválido' };
     if (!validAgentParams(params))
       return { ok: false, detail: 'prompt inválido' };
-    if (agents.has(id) || startingAgents.has(id)) return { ok: false, detail: 'sessão já ativa ou iniciando' };
-    startingAgents.add(id);
+    const ticket = agents.reserve(id);
+    if (!ticket) return { ok: false, detail: 'sessão já ativa ou iniciando' };
     try {
     const harness = params.harness ?? 'claude';
     if (harness !== 'claude' && harness !== 'codex') return { ok: false, detail: `adaptador '${harness}' não implementado` };
@@ -216,27 +211,26 @@ function registerIpc(): void {
       return { ok: false, detail: `CLI '${harness}' não encontrada. Instale-a em um terminal antes de iniciar o agente.` };
     const cwd = params.cwd && params.cwd.length > 0 ? params.cwd : app.getPath('home');
     if (!existsSync(cwd) || !statSync(cwd).isDirectory()) return { ok: false, detail: 'diretório de trabalho inválido' };
-    let endedBeforeRegistration = false;
-    let handle: ManagedSession | undefined;
     const cb = {
       onEvent: (agentEvent: import('../core/turn-state.js').SessionEvent) => {
         send('agent:event', { id, event: agentEvent });
-        if (['turn.completed', 'turn.failed', 'cancel.confirmed', 'process.exited'].includes(agentEvent.type)) {
-          // Só remove a PRÓPRIA sessão: um evento tardio de uma sessão cancelada
-          // não pode desregistrar uma sessão nova iniciada com o mesmo id.
-          if (handle === undefined) endedBeforeRegistration = true;
-          else if (agents.get(id) === handle) agents.delete(id);
-        }
+        if (['turn.completed', 'turn.failed', 'cancel.confirmed', 'process.exited'].includes(agentEvent.type)) ticket.onTerminal();
       },
       onCost: (usd: number) => send('agent:cost', { id, usd }),
       onOutput: (text: string) => send('agent:output', { id, text }),
       onSession: (ref: string) => send('agent:session', { id, ref }),
     };
     let route = '';
+    let decision: RoutingDecision | null = null;
     if (harness === 'claude') {
       const mode = parseRoutingMode(params.routing);
-      const decision = resolveRouting(mode, mode === 'auto' ? (await omni.probeHealth()).status : 'unknown');
+      decision = resolveRouting(mode, mode === 'auto' ? (await omni.probeHealth()).status : 'unknown');
       route = ` · ${decision.label}`;
+    }
+    // Cancelado enquanto checávamos CLI/rota: não inicia nada.
+    if (agents.cancelPending(id)) return { ok: false, detail: 'cancelado antes de iniciar' };
+    let handle: ManagedSession;
+    if (harness === 'claude' && decision) {
       handle = startClaudeSession({
         cwd,
         prompt: params.prompt,
@@ -253,22 +247,20 @@ function registerIpc(): void {
         ...(params.resume ? { resumeThreadId: params.resume } : {}),
       }, cb);
     }
-    if (!endedBeforeRegistration) agents.set(id, handle);
-    return endedBeforeRegistration
+    return !ticket.attach(handle)
       ? { ok: false, detail: `não foi possível iniciar (${harness})` }
       : { ok: true, detail: `${params.resume ? 'continuando' : 'iniciado'} (${harness}${route})` };
     } catch (error) {
       log(`agent:start falhou id=${id}: ${String(error)}`);
       return { ok: false, detail: `falha ao iniciar agente: ${String(error)}` };
     } finally {
-      startingAgents.delete(id);
+      ticket.release();
     }
   });
   ipcMain.handle('agent:cancel', async (event, id: string) => {
     assertTrustedIpc(event);
     if (!validId(id)) return { ok: false };
-    agents.get(id)?.cancel();
-    agents.delete(id);
+    agents.cancel(id);
     return { ok: true };
   });
   ipcMain.handle('agent:approve', async (event, id: string, requestId: string, decision: 'approved' | 'denied') => {
@@ -303,7 +295,6 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   pty?.killAll();
-  for (const h of agents.values()) h.cancel();
-  agents.clear();
+  agents.cancelAll();
   if (process.platform !== 'darwin') app.quit();
 });
