@@ -10,6 +10,9 @@ import type { ManagedSession, AgentCallbacks } from './types.js';
 import { buildAgentEnv } from './agent-env.js';
 import { killProcessTree, planSpawn } from '../resolve-command.js';
 
+// Injetada no build do main (scripts/build-main.mjs); em testes cai para 'dev'.
+const FRIGG_VERSION = typeof __FRIGG_VERSION__ === 'string' ? __FRIGG_VERSION__ : 'dev';
+
 export interface StartCodexParams {
   readonly cwd: string;
   readonly prompt: string;
@@ -254,7 +257,7 @@ export function startCodexSession(params: StartCodexParams, cb: AgentCallbacks):
     }
   });
 
-  send({ method: 'initialize', id: 0, params: { clientInfo: { name: 'frigg', title: 'FRIGG', version: '0.0.1' }, capabilities: { experimentalApi: false, optOutNotificationMethods: [] } } }, true);
+  send({ method: 'initialize', id: 0, params: { clientInfo: { name: 'frigg', title: 'FRIGG', version: FRIGG_VERSION }, capabilities: { experimentalApi: false, optOutNotificationMethods: [] } } }, true);
 
   return {
     cancel: () => {

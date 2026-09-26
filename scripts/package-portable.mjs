@@ -8,7 +8,7 @@
  *   node_modules/electron/dist/electron.exe (o `npm install` normalmente faz isso;
  *   se faltar: `node node_modules/electron/install.js`).
  */
-import { cpSync, rmSync, mkdirSync, writeFileSync, renameSync, existsSync } from 'node:fs';
+import { cpSync, rmSync, mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 
@@ -48,7 +48,7 @@ if (existsSync(lydellSrc)) {
 
 writeFileSync(
   join(app, 'package.json'),
-  JSON.stringify({ name: 'frigg-canvas', version: '0.0.1', main: 'dist/main/main.cjs' }, null, 2),
+  JSON.stringify({ name: 'frigg-canvas', version: JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version, main: 'dist/main/main.cjs' }, null, 2),
 );
 
 renameSync(join(out, 'electron.exe'), join(out, 'FRIGG.exe'));
