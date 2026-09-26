@@ -50,3 +50,12 @@ jobs:
         run: npx electron-builder --win nsis --publish always --prepackaged release/win-unpacked
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Release notes from CHANGELOG.md
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          # Seção "## [versão]" até a próxima "## [".
+          awk -v h="## [$version]" 'index($0, h) == 1 {on=1; next} on && index($0, "## [") == 1 {exit} on {print}' CHANGELOG.md > notes.md
+          if [ -s notes.md ]; then gh release edit "$GITHUB_REF_NAME" --notes-file notes.md; else echo "sem seção $version no CHANGELOG"; fi

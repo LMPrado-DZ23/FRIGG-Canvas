@@ -31,7 +31,7 @@ App desktop de **canvas + orquestração de agentes de IA** sobre o **OmniRoute*
 
 | Componente | Estado | Evidência |
 |---|---|---|
-| Núcleo/adaptadores/renderer: turn-state, session-model, workspace, segurança, OmniRoute, Claude, Codex, IPC, registro de sessões, updater, log, ações do canvas e fluxo | ✅ testado | 140 testes Vitest + lint sem warnings |
+| Núcleo/adaptadores/renderer: turn-state, session-model, workspace, segurança, OmniRoute, Claude, Codex, IPC, registro de sessões, updater, log, instalação de CLIs, ações do canvas e fluxo | ✅ testado | 152 testes Vitest, cobertura da lógica ~83% de linhas com limite mínimo no CI (`npm run test:coverage`) |
 | Typecheck strict (TS 6) | ✅ exit 0 | `npm run typecheck` |
 | App Electron ponta a ponta: ponte do preload, IPC, agente, limites de gasto, terminal PTY real, escritório 3D, tecla Delete e arraste no canvas, nome de projeto, console sem erros, persistência após reiniciar | ✅ testado | 11 testes Playwright + Electron (`npm run test:e2e`) no CI Linux e Windows (contra o `FRIGG.exe` portátil) |
 | Adaptadores Claude (stream-json) e Codex (App Server v2) | ✅ contrato testado; verificado com as CLIs reais (retomada e teto de gasto) | requer CLI logada |
@@ -41,6 +41,7 @@ App desktop de **canvas + orquestração de agentes de IA** sobre o **OmniRoute*
 ```bash
 npm install
 npm test                 # testes unitários e de contrato
+npm run test:coverage    # idem, com relatório e limite mínimo de cobertura
 npm run build            # main + renderer
 npm run test:e2e         # abre o app de verdade (Playwright + Electron); rode após o build
 npm start                # abre a janela (baixa o Electron na 1ª vez)
@@ -73,6 +74,12 @@ lint/typecheck/testes, gera o instalador e publica o `.exe` + `latest.yml` na Re
 
 Terminais 100% (node-pty nativo): com Visual Studio Build Tools (C++), rode
 `npm run rebuild`. Assinatura do `.exe` exige certificado (nasce da sua conta).
+
+## Qualidade e segurança no CI
+- **Quality**: lint sem warnings, typecheck, testes com cobertura, build, E2E (Linux e Windows, contra o `FRIGG.exe` portátil), `npm audit` e varredura de segredos.
+- **CodeQL**: análise de segurança do código (PRs, `main` e semanal).
+- **Dependabot**: atualizações de dependências e Actions.
+- **Release**: instalador + feed de atualização publicados por tag, com notas tiradas do [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Logs
 O processo principal grava em `%APPDATA%\frigg-canvas\logs\main.log` (no Linux/macOS, na
