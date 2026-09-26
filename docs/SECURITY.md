@@ -24,8 +24,17 @@ Prompts, arquivos do workspace, páginas visitadas e saídas de ferramentas são
 
 ## Arquivos
 
-- `file:open` recusa executáveis e scripts (`.exe`, `.bat`, `.cmd`, `.ps1`, `.lnk`, `.js`, `.msi`, `.sh`, …), pois abrir com o app padrão do SO os executaria.
+- `file:open` recusa executáveis e scripts (`.exe`, `.bat`, `.cmd`, `.ps1`, `.lnk`, `.js`, `.msi`, `.sh`, `.msc`, `.chm`, `.py`, `.settingcontent-ms`, …), pois abrir com o app padrão do SO os executaria.
+- Caminhos de rede (UNC `\\host\share`, `//host/share`) e de dispositivo (`\\?\`, `\\.\`) são recusados **antes de qualquer IO**: até um `existsSync` neles abre conexão SMB e pode vazar o hash NTLM do usuário.
+- O nó de imagem só carrega `http(s)` e `data:image/*`.
+- A confirmação de um terminal mostra a linha **exata** que será executada (inclusive o instalador custom).
 - `workspace.json` é gravado de forma atômica (`.tmp` + rename). Se o arquivo estiver corrompido **ou** tiver estrutura irrecuperável, ele é preservado como `workspace.json.corrupt-<timestamp>` antes de qualquer autosave.
+
+## Fluxos e agentes
+- Remover um nó, trocar ou excluir o projeto cancela os agentes ativos afetados e para o fluxo em execução — nunca fica um agente órfão rodando nem os agentes seguintes disparam sem a entrada de que dependem.
+- Cancelar durante a partida do agente (checagem da CLI/rota) é respeitado: nada é iniciado.
+- Remover um nó não “devolve” o gasto dele: o limite de gasto do fluxo não pode ser burlado.
+- Cada turno precisa da própria validação para liberar a aresta de sucesso.
 
 ## Reporte
 

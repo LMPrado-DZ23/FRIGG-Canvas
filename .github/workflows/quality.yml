@@ -19,8 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -50,7 +50,7 @@ jobs:
           if [ "$code" -ne 124 ]; then exit "$code"; fi
       - name: E2E (Playwright + Electron)
         run: xvfb-run -a npm run test:e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report-linux
@@ -64,8 +64,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -82,7 +82,7 @@ jobs:
         run: |
           $env:FRIGG_E2E_EXECUTABLE = (Resolve-Path "release/FRIGG-win/FRIGG.exe").Path
           npm run test:e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report-windows
@@ -97,7 +97,7 @@ jobs:
           Start-Sleep -Seconds 8
           if ($process.HasExited) { throw "FRIGG.exe encerrou durante o smoke test (code=$($process.ExitCode))" }
           Stop-Process -Id $process.Id -Force
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: FRIGG-windows-portable
           path: release/FRIGG-win

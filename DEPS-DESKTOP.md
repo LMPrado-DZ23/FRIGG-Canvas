@@ -1,28 +1,20 @@
-# Dependências do shell desktop (a adicionar no próximo incremento)
+# Dependências do app desktop
 
-O `package.json` atual só traz o toolchain de teste do **núcleo puro**, para
-`npm test` rodar rápido e sem build tools. O shell Electron/React/PTY precisa
-destas dependências — adicionadas quando formos buildar a UI:
+Runtime do processo principal (vão para o instalador):
 
-## Runtime / build
-- `electron` — shell desktop
-- `electron-builder` — empacotamento NSIS (.exe)
-- `electron-updater` — auto-update (reaproveitar feed do OmniRoute)
-- `vite` + `@vitejs/plugin-react` — bundler do renderer
-- `react`, `react-dom`
-- `@xyflow/react` (React Flow) — canvas de nós/arestas
-- `xterm` (`@xterm/xterm`) + `@xterm/addon-fit` — terminal no canvas
-- `node-pty` — PTY real (**requer** node-gyp + Visual Studio Build Tools no Windows)
-- `better-sqlite3` — persistência local de layout/workspace (nativo)
+- `@lydell/node-pty` — PTY real dos terminais (prebuilds N-API, sem compilador; fica fora do asar).
+- `electron-updater` — atualização automática via GitHub Releases (só na versão instalada).
 
-## Ordem de trabalho do incremento
-1. Vite + React + preload compilado (`preload.cjs`) + `index.html`.
-2. Canvas React Flow com nós de nota e um nó de terminal.
-3. `node-pty` atrás do main; renderer fala com o terminal só pelo preload.
-4. `better-sqlite3` para salvar/restaurar layout do workspace.
-5. Supervisão do OmniRoute headless (spawn + probeHealth); ausente = indisponível.
+Todo o resto é **build-time** (`devDependencies`) e chega ao app já empacotado pelo Vite
+(renderer) ou pelo esbuild (main/preload):
 
-## Nota sobre módulos nativos
-`node-pty` e `better-sqlite3` compilam contra o ABI do Electron — usar
-`electron-rebuild` após instalar. É por isso que ficam fora do `npm test` do
-núcleo puro (que roda em Node, sem Electron).
+- UI: `react` 19, `@xyflow/react` (canvas), `@xterm/xterm` 6 (terminal), `three` +
+  `@react-three/fiber` 9 + `@react-three/drei` 10 (escritório 3D, carregado sob demanda), `zustand`.
+- Build: `vite` 8 (Rolldown), `esbuild`, `typescript` 6.0, `electron` 44, `electron-builder`.
+- Qualidade: `eslint` + `typescript-eslint`, `vitest`, `@playwright/test` (E2E com Electron).
+
+O preload roda com `sandbox: true` e só pode importar `electron`; o build falha se ele
+passar a depender de qualquer outro módulo.
+
+Atualizações: o Dependabot abre PRs semanais (npm, minors/patches agrupados) e mensais
+(GitHub Actions). Majors vêm em PRs separados e passam pela suíte completa, incluindo E2E.

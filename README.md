@@ -31,9 +31,9 @@ App desktop de **canvas + orquestração de agentes de IA** sobre o **OmniRoute*
 
 | Componente | Estado | Evidência |
 |---|---|---|
-| Núcleo/adaptadores: turn-state, session-model, workspace, segurança, OmniRoute, Claude, Codex, IPC, updater | ✅ testado | 121 testes Vitest + lint sem warnings |
+| Núcleo/adaptadores/renderer: turn-state, session-model, workspace, segurança, OmniRoute, Claude, Codex, IPC, registro de sessões, updater, log, ações do canvas e fluxo | ✅ testado | 140 testes Vitest + lint sem warnings |
 | Typecheck strict (TS 6) | ✅ exit 0 | `npm run typecheck` |
-| App Electron ponta a ponta: ponte do preload, IPC, agente, limites de gasto, terminal PTY real, escritório 3D, persistência após reiniciar | ✅ testado | 8 testes Playwright + Electron (`npm run test:e2e`) no CI Linux e Windows |
+| App Electron ponta a ponta: ponte do preload, IPC, agente, limites de gasto, terminal PTY real, escritório 3D, tecla Delete e arraste no canvas, nome de projeto, console sem erros, persistência após reiniciar | ✅ testado | 11 testes Playwright + Electron (`npm run test:e2e`) no CI Linux e Windows (contra o `FRIGG.exe` portátil) |
 | Adaptadores Claude (stream-json) e Codex (App Server v2) | ✅ contrato testado; verificado com as CLIs reais (retomada e teto de gasto) | requer CLI logada |
 | Instalador NSIS + atualização automática (GitHub Releases) | ✅ `npm run dist:win`; publicação por tag `v*` | sem assinatura de código |
 
@@ -73,6 +73,11 @@ lint/typecheck/testes, gera o instalador e publica o `.exe` + `latest.yml` na Re
 
 Terminais 100% (node-pty nativo): com Visual Studio Build Tools (C++), rode
 `npm run rebuild`. Assinatura do `.exe` exige certificado (nasce da sua conta).
+
+## Logs
+O processo principal grava em `%APPDATA%\frigg-canvas\logs\main.log` (no Linux/macOS, na
+pasta `userData` do app, junto do `workspace.json`), com rotação em 1 MB (`main.log.1`). Prompts e saídas dos
+agentes não são registrados.
 
 ## OmniRoute
 Endpoint local padrão: `http://localhost:20128` (inferência em `/v1`). Ausente = a UI
