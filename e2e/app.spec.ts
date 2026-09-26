@@ -11,6 +11,7 @@ let app: ElectronApplication;
 let page: Page;
 let userData: string;
 const pageErrors: string[] = [];
+const consoleErrors: string[] = [];
 
 async function launch(): Promise<void> {
   // FRIGG_E2E_EXECUTABLE aponta para um app empacotado (ex.: release/win-unpacked/FRIGG.exe).
@@ -33,6 +34,7 @@ async function launch(): Promise<void> {
   // pegar dependências do layout responsivo.
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.setSize(1024, 720));
   page.on('pageerror', (e) => pageErrors.push(e.message));
+  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()); });
   await page.waitForLoadState('domcontentloaded');
 }
 
@@ -111,6 +113,51 @@ test('abre o escritório 3D (three/R3F carregados sob demanda) sem erros', async
   await expect(page.locator('.stage canvas')).toBeVisible({ timeout: 20_000 });
   expect(pageErrors).toEqual([]);
   await page.getByRole('button', { name: 'Canvas', exact: true }).click();
+});
+
+test('Delete apaga só o nó selecionado e o arraste move o nó', async () => {
+  await page.getByRole('button', { name: 'Início', exact: true }).click();
+  await page.locator('button.quick-card', { hasText: 'Nota rápida' }).click();
+  const note = page.locator('.react-flow__node-note');
+  await expect(note).toHaveCount(1);
+  await note.click({ position: { x: 10, y: 10 } });
+  await page.keyboard.press('Delete');
+  await expect(note).toHaveCount(0);
+  await expect(page.locator('.node.agent')).toHaveCount(1);
+
+  const agent = page.locator('.react-flow__node-agent');
+  const before = await agent.boundingBox();
+  const head = page.locator('.node.agent .head');
+  const box = await head.boundingBox();
+  if (!before || !box) throw new Error('nó sem caixa');
+  await page.mouse.move(box.x + 20, box.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 80, box.y + 48, { steps: 8 });
+  // Durante o arraste o nó acompanha o cursor (antes só saltava ao soltar).
+  const during = await agent.boundingBox();
+  expect(during!.x).toBeGreaterThan(before.x + 30);
+  await page.mouse.up();
+  await expect.poll(async () => (await agent.boundingBox())!.x).toBeGreaterThan(before.x + 30);
+});
+
+test('nome de projeto vazio não trava o salvamento automático', async () => {
+  await page.getByRole('button', { name: 'Canvas', exact: true }).click();
+  await page.getByTitle('Renomear').click();
+  const name = page.getByLabel('Nome do projeto');
+  await name.fill('');
+  await name.press('Enter');
+  await expect.poll(() => {
+    try {
+      return JSON.parse(readFileSync(join(userData, 'workspace.json'), 'utf8')).workspaces[0].name as string;
+    } catch {
+      return '';
+    }
+  }).toBe('Projeto sem nome');
+  await expect(page.locator('.save-state')).toHaveText('Salvo');
+});
+
+test('nenhum erro de console durante a sessão', () => {
+  expect(consoleErrors).toEqual([]);
 });
 
 test('persiste o workspace e restaura após reiniciar', async () => {
