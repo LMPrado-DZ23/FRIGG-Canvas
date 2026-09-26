@@ -19,7 +19,6 @@
     "dist:win": "npm run build && electron-builder --win nsis --publish never",
     "package:portable": "npm run build && node scripts/package-portable.mjs",
     "test:e2e": "playwright test",
-    "release:win": "npm run build && electron-builder --win nsis --publish always",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
