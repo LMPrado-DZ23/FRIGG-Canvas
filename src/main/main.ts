@@ -38,6 +38,7 @@ const configuredOmniRoute = process.env['FRIGG_OMNIROUTE_URL'] ?? 'http://localh
 const OMNIROUTE_BASE_URL = isSafeOmniRouteUrl(configuredOmniRoute) ? configuredOmniRoute : 'http://localhost:20128';
 if (configuredOmniRoute !== OMNIROUTE_BASE_URL) log('FRIGG_OMNIROUTE_URL inválida; usando endpoint local padrão');
 const DEV_URL = process.env['FRIGG_DEV_URL'];
+const APP_ICON = join(__dirname, '../icon.png');
 const PACKAGED_RENDERER_URL = pathToFileURL(join(__dirname, '../renderer/index.html')).href;
 
 const omni = new OmniRouteClient({
@@ -98,6 +99,7 @@ function createWindow(): void {
     minWidth: 1024,
     minHeight: 700,
     backgroundColor: '#0b1220',
+    ...(existsSync(APP_ICON) ? { icon: APP_ICON } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/preload.cjs'),
       contextIsolation: true,
