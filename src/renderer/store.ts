@@ -118,10 +118,18 @@ function nodeExists(s: Pick<FriggState, 'nodes' | 'inactiveDocs'>, id: string): 
   return s.nodes.some((n) => n.id === id) || Object.values(s.inactiveDocs).some((doc) => doc.nodes.some((n) => n.id === id));
 }
 
+/**
+ * Nós removidos cujo agente pode ainda informar custo (o Claude manda o custo no
+ * `result`, que pode chegar depois do cancelamento): esse gasto vai para
+ * retiredCostUsd em vez de ser descartado.
+ */
+const retiredIds = new Set<string>();
+
 function retireSessions(sessions: Record<string, SessionSlot>, ids: readonly string[]): { sessions: Record<string, SessionSlot>; retired: number } {
   const next = { ...sessions };
   let retired = 0;
   for (const id of ids) {
+    retiredIds.add(id);
     retired += next[id]?.costUsd ?? 0;
     delete next[id];
   }
@@ -336,7 +344,7 @@ export const useFrigg = create<FriggState>((set, get) => ({
 
   addCost: (id, usd) =>
     set((s) => {
-      if (!nodeExists(s, id)) return s;
+      if (!nodeExists(s, id)) return retiredIds.has(id) ? { retiredCostUsd: s.retiredCostUsd + usd } : s;
       const slot = s.sessions[id] ?? { state: initialSessionState(), lastEventAt: Date.now() };
       return { sessions: { ...s.sessions, [id]: { ...slot, costUsd: (slot.costUsd ?? 0) + usd } } };
     }),

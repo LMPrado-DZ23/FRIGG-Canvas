@@ -41,6 +41,12 @@ describe('ações destrutivas seguras', () => {
     useFrigg.getState().addCost(id, 1.25);
     removeNodeSafely(id);
     expect(spentUsd(useFrigg.getState())).toBe(1.25);
+    // Custo informado depois do cancelamento (result tardio) também conta.
+    useFrigg.getState().addCost(id, 0.5);
+    expect(spentUsd(useFrigg.getState())).toBe(1.75);
+    // Id desconhecido continua sendo ignorado.
+    useFrigg.getState().addCost('fantasma', 9);
+    expect(spentUsd(useFrigg.getState())).toBe(1.75);
   });
 
   it('trocar de projeto cancela agentes ativos, para o fluxo e ainda recebe os eventos deles', () => {
@@ -72,6 +78,31 @@ describe('ações destrutivas seguras', () => {
     expect(cancel).toHaveBeenCalledWith(id);
     expect(useFrigg.getState().workspaces).toHaveLength(1);
     expect(spentUsd(useFrigg.getState())).toBe(2);
+  });
+});
+
+describe('orçamento do fluxo', () => {
+  beforeEach(() => {
+    cancel.mockClear();
+    freshStore();
+  });
+
+  it('só conta os agentes do próprio fluxo, não os de outro projeto em segundo plano', async () => {
+    const { pumpWorkflow } = await import('./orchestrate.js');
+    const s = useFrigg.getState();
+    const other = s.addNode('agent'); // agente de outro projeto
+    running(other);
+    s.addWorkspace('B');
+    const mine = useFrigg.getState().addNode('agent');
+    useFrigg.getState().setWorkflowBudget(1);
+    expect(startWorkflow()).toBeNull();
+    useFrigg.getState().addCost(other, 5); // outro projeto gasta muito
+    await pumpWorkflow();
+    expect(useFrigg.getState().workflowNotice).toBeNull();
+    useFrigg.getState().addCost(mine, 1.2); // este fluxo passa do limite
+    await pumpWorkflow();
+    expect(useFrigg.getState().workflowRunning).toBe(false);
+    expect(useFrigg.getState().workflowNotice).toContain('limite');
   });
 });
 

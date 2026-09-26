@@ -57,7 +57,11 @@ export function Canvas2D(): JSX.Element {
   // Remoções passam por onNodesDelete (cancela agentes, para o fluxo); seleção vai
   // para o store; o resto (arraste, dimensões) é aplicado localmente.
   const onNodesChange = (changes: NodeChange[]): void => {
-    for (const c of changes) if (c.type === 'select' && c.selected) select(c.id);
+    for (const c of changes) {
+      if (c.type !== 'select') continue;
+      if (c.selected) select(c.id);
+      else if (c.id === useFrigg.getState().selectedId) select(null);
+    }
     const local = changes.filter((c) => c.type !== 'remove' && c.type !== 'select');
     if (local.length > 0) setRfNodes((nds) => applyNodeChanges(local, nds));
   };
