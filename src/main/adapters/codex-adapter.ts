@@ -198,6 +198,17 @@ export function startCodexSession(params: StartCodexParams, cb: AgentCallbacks):
         }
         break;
       }
+      case 'error': {
+        // Notificação de erro do turno. Com willRetry o app-server tenta de novo
+        // (ex.: provedor fora do ar); sem retry o turno não vai concluir — falha
+        // agora em vez de deixar a sessão pendurada.
+        const willRetry = msg.params?.['willRetry'] === true;
+        const err = msg.params?.['error'] as { message?: unknown } | undefined;
+        const text = typeof err?.message === 'string' && err.message ? err.message : 'erro do Codex';
+        if (!willRetry) fail(text);
+        else cb.onOutput?.(`[Codex] ${text} (tentando novamente…)`);
+        break;
+      }
       case 'item/agentMessage/delta': {
         const delta = msg.params?.['delta'];
         if (typeof delta === 'string') output += delta;

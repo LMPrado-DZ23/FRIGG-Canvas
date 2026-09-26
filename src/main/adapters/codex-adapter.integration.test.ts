@@ -17,7 +17,8 @@ class FakeChild extends EventEmitter {
   exitCode: number | null = null;
   signalCode: string | null = null;
 
-  constructor(private readonly threadError?: string) {
+  /** `turnLines` substitui o roteiro padrão do turno (linhas NDJSON). */
+  constructor(private readonly threadError?: string, private readonly turnLines?: string[]) {
     super();
   }
 
@@ -32,6 +33,9 @@ class FakeChild extends EventEmitter {
         }
         const id = msg.method === 'thread/resume' ? msg.params?.['threadId'] : 'thread-1';
         this.stdout.emit('data', `${JSON.stringify({ id: 1, result: { thread: { id } } })}\n`);
+      } else if (msg.method === 'turn/start' && this.turnLines) {
+        for (const line of this.turnLines) this.stdout.emit('data', `${line}
+`);
       } else if (msg.method === 'turn/start') {
         this.stdout.emit('data', '{"method":"turn/started","params":{"turn":{"id":"turn-1"}}}\n');
         this.stdout.emit('data', '{"method":"item/agentMessage/delta","params":{"delta":"ok"}}\n');
@@ -117,6 +121,35 @@ describe('Codex adapter integration contract', () => {
     expect(events.find((e) => e.type === 'turn.failed')?.error).toContain('onRequest');
     expect(child.killed).toBe(true);
     expect(events.at(-1)?.type).toBe('process.exited');
+  });
+});
+
+describe('notificações de erro do turno', () => {
+  beforeEach(() => spawn.mockReset());
+  const started = '{"method":"turn/started","params":{"turn":{"id":"turn-1"}}}';
+  const errorLine = (willRetry: boolean): string =>
+    JSON.stringify({ method: 'error', params: { threadId: 'thread-1', turnId: 'turn-1', willRetry, error: { message: 'provedor recusou a conexão' } } });
+
+  it('erro definitivo falha o turno e encerra o app-server (sem sessão pendurada)', async () => {
+    const child = new FakeChild(undefined, [started, errorLine(false)]);
+    spawn.mockReturnValue(child);
+    const events: { type: string; error?: string }[] = [];
+    startCodexSession({ cwd: '/tmp', prompt: 'x' }, { onEvent: (e) => events.push(e as { type: string; error?: string }) });
+    await settle();
+    expect(events.find((e) => e.type === 'turn.failed')?.error).toBe('provedor recusou a conexão');
+    expect(child.killed).toBe(true);
+  });
+
+  it('erro com nova tentativa só informa, sem falhar', async () => {
+    const child = new FakeChild(undefined, [started, errorLine(true)]);
+    spawn.mockReturnValue(child);
+    const events: string[] = [];
+    let output = '';
+    startCodexSession({ cwd: '/tmp', prompt: 'x' }, { onEvent: (e) => events.push(e.type), onOutput: (t) => { output = t; } });
+    await settle();
+    expect(events).not.toContain('turn.failed');
+    expect(output).toContain('tentando novamente');
+    expect(child.killed).toBe(false);
   });
 });
 
