@@ -105,4 +105,17 @@ describe('turn-state (G4)', () => {
     expect(s.turn).toBe('idle');
     expect(s.validation).toBe('unvalidated');
   });
+
+  it('validação não passa de um turno para o outro', () => {
+    const first = runEvents([
+      { type: 'process.started' },
+      { type: 'turn.started', turnId: 't1' },
+      { type: 'result.validated' },
+      { type: 'turn.completed', turnId: 't1' },
+    ]);
+    expect(isEligibleForSuccessEdge(first)).toBe(true);
+    const second = runEvents([{ type: 'turn.started', turnId: 't2' }, { type: 'turn.completed', turnId: 't2' }], first);
+    expect(second.validation).toBe('unvalidated');
+    expect(isEligibleForSuccessEdge(second)).toBe(false);
+  });
 });

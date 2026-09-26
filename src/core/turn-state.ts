@@ -100,7 +100,8 @@ export function reduce(state: AgentSessionState, event: SessionEvent): AgentSess
 
     case 'turn.started': {
       if (isTerminal(state.turn) || state.turn === 'idle') {
-        return { ...state, turn: 'running', turnId: event.turnId, cancelRequested: false, reason: null, pendingApprovals: [] };
+        // Cada turno precisa da própria validação: a do turno anterior não vale.
+        return { ...state, turn: 'running', turnId: event.turnId, cancelRequested: false, reason: null, pendingApprovals: [], validation: 'unvalidated' };
       }
       // Novo turno começou sem o anterior encerrar.
       return { ...state, turn: 'unknown', reason: 'turn.started sobre turno não encerrado' };
