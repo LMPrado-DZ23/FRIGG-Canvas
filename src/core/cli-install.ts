@@ -43,8 +43,18 @@ export function installForCommand(command: string): string | null {
   return INSTALL_COMMANDS[c] ?? INSTALL_COMMANDS[binOf(c)] ?? null;
 }
 
+/**
+ * Sintaxe do shell do terminal: PowerShell no Windows, POSIX (bash/zsh) no
+ * Linux/macOS. Antes o wrapper era sempre PowerShell e, fora do Windows, o bash
+ * dava erro de sintaxe e a CLI nunca rodava.
+ */
+export type ShellFlavor = 'powershell' | 'posix';
+
 /** Monta o wrapper "instala-se-faltar; executa" para um bin/install/cmd dados. */
-function wrap(bin: string, install: string, cmd: string): string {
+function wrap(bin: string, install: string, cmd: string, shell: ShellFlavor): string {
+  if (shell === 'posix') {
+    return `if ! command -v ${bin} >/dev/null 2>&1; then echo 'FRIGG: instalando ${bin}...'; ${install}; fi; ${cmd}`;
+  }
   return `if (-not (Get-Command ${bin} -ErrorAction SilentlyContinue)) { Write-Host 'FRIGG: instalando ${bin}...' -ForegroundColor Cyan; ${install} }; ${cmd}`;
 }
 
@@ -52,12 +62,12 @@ function wrap(bin: string, install: string, cmd: string): string {
  * Comando PowerShell que instala a CLI se faltar e então a executa.
  * Sem instalador conhecido, retorna o comando cru.
  */
-export function autoInstallCommand(command: string): string {
+export function autoInstallCommand(command: string, shell: ShellFlavor = 'powershell'): string {
   const cmd = command.trim();
   if (!cmd) return '';
   const install = installForCommand(cmd);
   if (!install) return cmd;
-  return wrap(binOf(cmd), install, cmd);
+  return wrap(binOf(cmd), install, cmd, shell);
 }
 
 /**
@@ -65,10 +75,10 @@ export function autoInstallCommand(command: string): string {
  * usuário (CLI que não está no catálogo). Precedência: install custom > catálogo
  * > comando cru. Vazio/whitespace no custom é ignorado.
  */
-export function autoInstallCommandWith(command: string, customInstall?: string): string {
+export function autoInstallCommandWith(command: string, customInstall?: string, shell: ShellFlavor = 'powershell'): string {
   const cmd = command.trim();
   if (!cmd) return '';
   const custom = (customInstall ?? '').trim();
-  if (custom) return wrap(binOf(cmd), custom, cmd);
-  return autoInstallCommand(cmd);
+  if (custom) return wrap(binOf(cmd), custom, cmd, shell);
+  return autoInstallCommand(cmd, shell);
 }

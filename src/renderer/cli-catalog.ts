@@ -94,4 +94,15 @@ export const CLI_CATEGORIES: readonly CliCategory[] = ['Code', 'Agent', 'Externa
 export const MANAGED_HARNESSES: readonly string[] = CLI_CATALOG.filter((c) => c.managed).map((c) => c.command);
 
 // Instalação automática: fonte única no core (usada por terminal e agentes).
-export { INSTALL_COMMANDS, autoInstallCommand, autoInstallCommandWith } from '../core/cli-install.js';
+import { autoInstallCommandWith as buildInstallCommand, type ShellFlavor } from '../core/cli-install.js';
+export { INSTALL_COMMANDS } from '../core/cli-install.js';
+
+/** O PTY abre PowerShell no Windows e o shell do usuário (bash/zsh) no resto. */
+export function terminalShellFlavor(userAgent: string = globalThis.navigator?.userAgent ?? ''): ShellFlavor {
+  return /Windows/i.test(userAgent) ? 'powershell' : 'posix';
+}
+
+/** Linha que o terminal vai executar, na sintaxe do shell desta plataforma. */
+export function autoInstallCommandWith(command: string, customInstall?: string): string {
+  return buildInstallCommand(command, customInstall, terminalShellFlavor());
+}
