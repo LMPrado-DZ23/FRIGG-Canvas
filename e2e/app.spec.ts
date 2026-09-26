@@ -3,6 +3,10 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+// Os testes compartilham um app e dependem da ordem (o agente criado é persistido
+// e verificado no fim): uma falha pula os seguintes em vez de re-rodar com estado vazio.
+test.describe.configure({ mode: 'serial', retries: 0 });
+
 let app: ElectronApplication;
 let page: Page;
 let userData: string;
@@ -25,6 +29,9 @@ async function launch(): Promise<void> {
     },
   });
   page = await app.firstWindow();
+  // Janela no tamanho mínimo do app (igual a telas pequenas / runner do CI) para
+  // pegar dependências do layout responsivo.
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.setSize(1024, 720));
   page.on('pageerror', (e) => pageErrors.push(e.message));
   await page.waitForLoadState('domcontentloaded');
 }
@@ -98,7 +105,8 @@ test('terminal real (PTY + xterm) executa um comando e mostra a saída', async (
 });
 
 test('abre o escritório 3D (three/R3F carregados sob demanda) sem erros', async () => {
-  await page.getByRole('button', { name: 'Abrir command palette' }).click();
+  // Atalho em vez do botão: o botão some em janelas < 1080 px (CSS responsivo).
+  await page.keyboard.press('Control+K');
   await page.getByRole('dialog').getByText('Abrir escritório 3D').click();
   await expect(page.locator('.stage canvas')).toBeVisible({ timeout: 20_000 });
   expect(pageErrors).toEqual([]);
