@@ -18,13 +18,17 @@ export function NewTerminalModal({ open, onClose }: { open: boolean; onClose: ()
   const [install, setInstall] = useState('');
   const modalRef = useRef<HTMLDivElement | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  // onClose numa ref: o App o recria a cada render (poll de saúde a cada 5 s) e o
+  // efeito abaixo não pode re-rodar por isso — roubaria o foco de quem digita.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
     if (!open) return undefined;
     returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const first = modalRef.current?.querySelector<HTMLElement>('input, button, select, textarea');
     first?.focus();
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') { onClose(); return; }
+      if (event.key === 'Escape') { onCloseRef.current(); return; }
       if (event.key !== 'Tab' || !modalRef.current) return;
       const focusable = [...modalRef.current.querySelectorAll<HTMLElement>('input, button, select, textarea')]
         .filter((el) => !el.hasAttribute('disabled'));
@@ -44,7 +48,7 @@ export function NewTerminalModal({ open, onClose }: { open: boolean; onClose: ()
       window.removeEventListener('keydown', onKeyDown);
       returnFocusRef.current?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
 
   const create = (): void => {

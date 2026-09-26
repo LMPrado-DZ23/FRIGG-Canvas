@@ -13,13 +13,22 @@ export function TextNode(props: NodeProps): JSX.Element {
   return editing ? (
     <textarea
       className="nodrag text-node-edit"
+      aria-label="Texto do nó"
       autoFocus
       value={text}
       onChange={(e) => patch(nodeId, { text: e.target.value })}
       onBlur={() => setEditing(false)}
     />
   ) : (
-    <div className="text-node" onDoubleClick={() => setEditing(true)} title="Duplo clique para editar">
+    <div
+      className="text-node"
+      role="button"
+      tabIndex={0}
+      aria-label={`Texto: ${text || 'vazio'}. Enter para editar`}
+      onDoubleClick={() => setEditing(true)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'F2') { e.preventDefault(); setEditing(true); } }}
+      title="Duplo clique (ou Enter) para editar"
+    >
       {text || 'Texto (duplo clique)'}
     </div>
   );

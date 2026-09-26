@@ -12,7 +12,7 @@ export function NoteNode(props: NodeProps): JSX.Element {
     <div className="node note">
       <div className="head"><span className="dot" /> Nota<DeleteBtn id={nodeId} /></div>
       <div className="body">
-        <textarea
+        <textarea aria-label="Texto da nota"
           value={text}
           onChange={(e) => patch(nodeId, { text: e.target.value })}
           className="nodrag"

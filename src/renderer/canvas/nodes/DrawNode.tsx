@@ -70,7 +70,7 @@ export function DrawNode(props: NodeProps): JSX.Element {
     <div className="node draw">
       <div className="head"><span className="dot" /> ✏️ Desenho<button className="btn mini nodrag" title="Limpar" onClick={clear}>🧹</button><DeleteBtn id={nodeId} /></div>
       <div className="body" style={{ padding: 6 }}>
-        <canvas
+        <canvas role="img" aria-label="Área de desenho (use o mouse para desenhar)"
           ref={ref}
           width={W}
           height={H}

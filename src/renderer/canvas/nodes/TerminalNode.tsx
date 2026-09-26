@@ -18,7 +18,7 @@ export function TerminalNode(props: NodeProps): JSX.Element {
     <div className="node terminal">
       <div className="head">
         <span className="dot working" /> {title}
-        <select
+        <select aria-label="CLI do terminal"
           className="nodrag"
           value={command}
           onChange={(e) => patch(nodeId, { command: e.target.value, title: e.target.selectedOptions[0]?.text ?? title })}

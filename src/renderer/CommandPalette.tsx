@@ -10,20 +10,27 @@ export function CommandPalette({ open, onClose, onNewTerminal, onOrchestrate }: 
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  // onClose numa ref: re-renders do App (poll de 5 s) não podem zerar a busca digitada.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const setView = useFrigg((s) => s.setView);
   const addNode = useFrigg((s) => s.addNode);
   const addTemplate = useFrigg((s) => s.addTemplate);
-  const setObjective = useFrigg((s) => s.setObjective);
 
   useEffect(() => {
     if (!open) return undefined;
     setQuery('');
     setActiveIndex(0);
+    const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const timer = window.setTimeout(() => inputRef.current?.focus(), 0);
-    const onKeyDown = (event: KeyboardEvent): void => { if (event.key === 'Escape') onClose(); };
+    const onKeyDown = (event: KeyboardEvent): void => { if (event.key === 'Escape') onCloseRef.current(); };
     window.addEventListener('keydown', onKeyDown);
-    return () => { window.clearTimeout(timer); window.removeEventListener('keydown', onKeyDown); };
-  }, [open, onClose]);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('keydown', onKeyDown);
+      returnFocus?.focus();
+    };
+  }, [open]);
 
   if (!open) return null;
   const closeAfter = (action: () => void): (() => void) => () => { action(); onClose(); };
@@ -38,7 +45,7 @@ export function CommandPalette({ open, onClose, onNewTerminal, onOrchestrate }: 
     { id: 'note', label: 'Criar nota', hint: 'Canvas', icon: '□', action: () => add('note') },
     { id: 'run', label: 'Orquestrar objetivo', hint: 'Workflow', icon: '▶', action: onOrchestrate },
     ...TEAM_TEMPLATES.map((template) => ({ id: `template-${template.id}`, label: `Usar playbook: ${template.label.replace(/^[^ ]+ /, '')}`, hint: 'Playbooks', icon: '▦', action: () => { addTemplate(template.nodes, template.chain); setView('2d'); } })),
-    { id: 'objective', label: 'Definir objetivo do projeto', hint: 'Workspace', icon: '✎', action: () => { setView('2d'); setObjective(''); } },
+    { id: 'objective', label: 'Definir objetivo do projeto', hint: 'Workspace', icon: '✎', action: () => { setView('home'); window.setTimeout(() => document.getElementById('objective-input')?.focus(), 0); } },
   ];
   const filtered = commands.filter((command) => `${command.label} ${command.hint}`.toLowerCase().includes(query.toLowerCase()));
   const runActive = (): void => { const command = filtered[activeIndex]; if (command) closeAfter(command.action)(); };
